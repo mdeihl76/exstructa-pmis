@@ -116,6 +116,17 @@
     grid-template-columns:minmax(0,1fr) minmax(0,1fr);
     gap:7px;
     padding:8px 14px 6px;
+    /* min-height:0 overrides a flex item's default "never shrink below your
+       own content" floor, and overflow-y:auto gives it somewhere to put the
+       overflow instead of just clipping it. Together, this is the only part
+       of the sidebar that's allowed to shrink and scroll when the window is
+       too short for everything — .side-brand above and .side-actions below
+       (Invite teammate / Log out) keep their normal min-height:auto floor,
+       so they can never be squeezed out of view. Fixes Log out becoming
+       unreachable on shorter windows, without changing anything about how
+       the sidebar looks when everything already fits. */
+    min-height:0;
+    overflow-y:auto;
   }
   .tab-btn{
     font-family:var(--sans);
@@ -1810,6 +1821,16 @@
      (e.g. the Subcontractor Claims & Variations summary) — flat card, no wash. */
   #overview-financial-grid .statcard::after,
   #overview-outstanding-grid .statcard::after{display:none;}
+  /* The hero photo panel shares .panel-card's app-wide drop shadow (a
+     downward-only shadow used to give every card a subtle lifted-off-the-page
+     look), which reads noticeably heavier on the bottom edge than the top/
+     sides once you're looking for it — most visible here since this panel
+     sits right next to the flat, shadowless stat cards with nothing else
+     nearby to make it read as "just how cards look" the way it does
+     elsewhere in the app. Softened to a small, even shadow on all sides
+     instead, scoped to just this one panel so the rest of the app keeps its
+     usual card shadow unchanged. */
+  #overview-photo-widget{box-shadow:0 1px 2px rgba(12,22,24,0.08);}
   /* Financial Snapshot / Outstanding Items sit in the narrower right-hand two
      columns now (the left column holds the hero photo), so each card is scaled
      down — tighter padding, smaller type — to keep 3-per-row without wrapping
@@ -1846,8 +1867,24 @@
      stats column automatically, without any manual height-pinning. */
   .overview-lower-grid{min-height:320px;}
   #overview-photo-widget{min-height:320px;}
-  .overview-stat-grid{grid-auto-rows:minmax(64px,auto);}
+  .overview-stat-grid{grid-auto-rows:minmax(64px,auto);align-content:stretch;}
   #overview-hero-photo{object-fit:cover;}
+  /* On a screen tall enough that Project Details + the photo/stats row don't
+     reach the bottom of the window, the leftover room used to just sit there
+     as blank grey space below everything — most visible as a much wider grey
+     margin under the page than above/beside it, since #main-scroll's own
+     padding (below) is deliberately taller than its other sides to give
+     scrolled content some breathing room. Rather than change that shared
+     padding (used by every Tool, not just this page), #view-overview is
+     grown to floor-fill the scroll container instead, so this page's own
+     content — not empty padding — is what fills a big screen. min-height:100%
+     is a floor only: on a short window this has no effect and the page still
+     scrolls normally exactly as before, nothing about the scrolling fix above
+     changes. */
+  #view-overview{display:flex;flex-direction:column;min-height:100%;margin-bottom:-50px;}
+  .overview-lower-grid{flex:1;}
+  #overview-stats-column{display:flex;flex-direction:column;}
+  #overview-stats-column .overview-stat-grid{flex:1;}
 
   .search-row{display:flex;gap:10px;margin-bottom:14px;}
   .search-row input{
@@ -8102,13 +8139,10 @@ const CLOUD_FILES_BUCKET = 'project-files';
 
 /* ============ DOCUMENT SHARING (external, tracked links) ============
    Where share.html (the public, no-login page a recipient lands on) is
-   hosted. This has to be a real, stable HTTPS URL reachable from outside
-   your own machine — a subcontractor can't open a file:// path on your
-   laptop. Upload share.html to any static host (GitHub Pages, Netlify,
-   Vercel, S3+CloudFront, etc.) and put its URL here. Until this is
-   updated, generated links will use this placeholder and won't work for
-   anyone but you testing locally. */
-const DOC_SHARE_BASE_URL = 'https://your-domain-here.example/share.html';
+   hosted. share.html lives in the same repo/deploy as this file
+   (exstructa-pmis), so it's already served at app.exstructa.nz/share.html
+   with no separate hosting step needed. */
+const DOC_SHARE_BASE_URL = 'https://app.exstructa.nz/share.html';
 
 function makeCloudFileStore(moduleFolder, label){
   function pathFor(key){
@@ -8876,6 +8910,16 @@ function authGate(){
       `;
       document.body.appendChild(overlay);
       panel = overlay.querySelector('#ag-panel');
+      // None of the screens rendered into this panel (login, signup, org
+      // setup, first project) are wrapped in a <form>, so pressing Enter in
+      // a field did nothing — only clicking the button worked. One
+      // delegated listener here covers all of them: Enter anywhere in the
+      // panel triggers whichever primary button is currently showing.
+      panel.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        const btn = panel.querySelector('.ag-btn-primary');
+        if (btn){ e.preventDefault(); btn.click(); }
+      });
     }
 
     function box(html){ ensureOverlay(); panel.innerHTML = html; }
@@ -23260,8 +23304,17 @@ function docShareSheetById(module, sheetId){
    STORE above — so a shared file's path always resolves to the same
    object the rest of the app already reads/writes via DrawingStore/
    CDrawingStore. */
+/* module here is the doc-share UI's own name for the tool ('takeoff' |
+   'cdrawings'), but the actual cloud-storage folder for 'takeoff' files is
+   'drawings' — DrawingStore was defined as makeCloudFileStore('drawings', ...)
+   back when the Takeoff tool was still internally called Drawings, and
+   only the on-screen label changed in the Rev5 split, not the storage
+   folder name. cdrawings matches its own storage folder 1:1. Mapping this
+   correctly is what makes a shared file's path actually resolve to the
+   real object in Supabase Storage. */
 function docSharePath(module, fileKey){
-  return `${CURRENT_PROJECT_ID}/${module}/${fileKey}`;
+  const folder = module === 'takeoff' ? 'drawings' : module;
+  return `${CURRENT_PROJECT_ID}/${folder}/${fileKey}`;
 }
 function fmtDateTimeStr(iso){
   if (!iso) return '—';
