@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared documents — Exstructa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#111c24;
+    --navy-2:#1a2530;
+    --gold:#f5e35c;
+    --gold-muted:#c9b25a;
+    --paper:#e2e4e4;
+    --card:#ffffff;
+    --ink:#1b2530;
+    --muted:#6b7580;
+    --line:#e0e0e0;
+    --line-soft:#ececec;
+    --good:#2f8a5b;
+    --good-bg:#e7f3ec;
+    --amber:#b8752b;
+    --amber-bg:#f7ecd6;
+    --red:#c0503f;
+    --red-bg:#fdeceb;
+    --sans:'Barlow','Segoe UI',system-ui,sans-serif;
+    --sans-heading:'Barlow Condensed','Barlow',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  header{
+    width:100%;
+    background:var(--navy);
+    background-image:radial-gradient(ellipse 700px 300px at 50% -40%, var(--navy-2) 0%, var(--navy) 70%);
+  }
+  .header-inner{
+    max-width:640px;
+    margin:0 auto;
+    padding:22px 24px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .mark{display:flex;align-items:flex-end;gap:3px;height:18px;}
+  .mark .bar{width:6px;background:var(--gold);border-radius:1px;}
+  .mark .bar:nth-child(1){height:59%;}
+  .mark .bar:nth-child(2){height:45%;}
+  .mark .bar:nth-child(3){height:100%;}
+  .wordmark{
+    font-family:var(--sans-heading);
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:.2em;
+    color:#eef0f1;
+    text-transform:uppercase;
+  }
+
+  main{
+    width:100%;
+    max-width:640px;
+    padding:36px 20px 64px;
+    flex:1;
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:30px 28px;
+    box-shadow:0 1px 2px rgba(12,22,24,0.05), 0 8px 24px rgba(12,22,24,0.06);
+  }
+
+  .eyebrow{
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:var(--sans-heading);
+    font-weight:700;
+    font-size:26px;
+    line-height:1.2;
+    margin:0 0 4px;
+    color:var(--navy);
+  }
+  .project-line{
+    font-size:14px;
+    color:var(--muted);
+    margin:0 0 20px;
+  }
+  .greeting{
+    font-size:15px;
+    margin:0 0 22px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line-soft);
+  }
+
+  .file-list{margin:0 0 8px;}
+  .file-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .file-row:last-child{border-bottom:none;}
+  .file-icon{
+    flex:none;
+    width:38px;height:38px;
+    border-radius:8px;
+    background:var(--line-soft);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--navy);
+    font-size:15px;
+    font-weight:700;
+    font-family:var(--sans-heading);
+  }
+  .file-info{flex:1;min-width:0;}
+  .file-label{font-weight:600;font-size:14.5px;color:var(--ink);word-break:break-word;}
+  .file-name{font-size:12.5px;color:var(--muted);margin-top:2px;word-break:break-all;}
+  .dl-btn{
+    flex:none;
+    font-family:var(--sans);
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--navy);
+    background:var(--gold);
+    border:none;
+    border-radius:7px;
+    padding:9px 16px;
+    cursor:pointer;
+    transition:filter .12s;
+  }
+  .dl-btn:hover{filter:brightness(1.06);}
+  .dl-btn:disabled{opacity:.6;cursor:default;}
+  .dl-btn.done{background:var(--good-bg);color:var(--good);}
+
+  .expiry-note{
+    margin-top:22px;
+    padding-top:18px;
+    border-top:1px solid var(--line-soft);
+    font-size:12.5px;
+    color:var(--muted);
+  }
+
+  .state-icon{
+    width:46px;height:46px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;
+    margin-bottom:16px;
+  }
+  .state-icon.error{background:var(--red-bg);color:var(--red);}
+  .state-icon.amber{background:var(--amber-bg);color:var(--amber);}
+  .state-title{
+    font-family:var(--sans-heading);
+    font-weight:700;
+    font-size:21px;
+    color:var(--navy);
+    margin:0 0 8px;
+  }
+  .state-body{font-size:14.5px;color:var(--muted);line-height:1.55;margin:0;}
+
+  .skeleton{
+    background:linear-gradient(90deg, var(--line-soft) 25%, #f4f4f4 37%, var(--line-soft) 63%);
+    background-size:400% 100%;
+    animation:shimmer 1.4s ease infinite;
+    border-radius:6px;
+  }
+  @keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
+  @media (prefers-reduced-motion: reduce){ .skeleton{animation:none;} }
+
+  footer{
+    width:100%;
+    max-width:640px;
+    padding:0 20px 32px;
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+  }
+  footer a{color:var(--muted);}
+
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:24px;
+    transform:translateX(-50%) translateY(12px);
+    background:var(--navy);
+    color:#eef0f1;
+    font-size:13.5px;
+    padding:11px 18px;
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(12,22,24,0.25);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s, transform .18s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="mark" aria-hidden="true"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      <div class="wordmark">Exstructa</div>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="card" id="card">
+      <div class="eyebrow skeleton" style="width:120px;height:12px;">&nbsp;</div>
+      <h1 class="skeleton" style="width:70%;height:26px;margin-top:4px;">&nbsp;</h1>
+      <div class="project-line skeleton" style="width:40%;height:14px;margin-top:10px;">&nbsp;</div>
+    </div>
+  </main>
+
+  <footer>If you weren't expecting this link, you can ignore it — no account or download happens without you clicking a button below.</footer>
+
+  <div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+
+  var SUPABASE_URL = "https://ynlqvwerhlifcisyfnbg.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlubHF2d2VyaGxpZmNpc3lmbmJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyOTU3MzAsImV4cCI6MjEwMTg3MTczMH0.O0bNhODBOwTV8ulvgXowOn9UNAb-fbipQFvYSYHu-1E";
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var card = document.getElementById('card');
+  var toastEl = document.getElementById('toast');
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(function(){ toastEl.classList.remove('show'); }, 2200);
+  }
+
+  function fmtDate(iso){
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  function fileExt(filename){
+    var m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
+    return m ? m[1].toUpperCase().slice(0,4) : 'FILE';
+  }
+
+  function renderState(kind, title, body){
+    var iconCls = kind === 'error' ? 'error' : 'amber';
+    var glyph = kind === 'error' ? '!' : '⏱';
+    card.innerHTML =
+      '<div class="state-icon ' + iconCls + '">' + glyph + '</div>' +
+      '<h1 class="state-title">' + escapeHtml(title) + '</h1>' +
+      '<p class="state-body">' + escapeHtml(body) + '</p>';
+  }
+
+  function renderShare(data){
+    var files = data.files || [];
+    var expiresText = data.expires_at ? ('This link expires ' + fmtDate(data.expires_at) + '.') : '';
+
+    var html = '';
+    html += '<div class="eyebrow">Shared with you' + (data.recipient_name ? ' &middot; ' + escapeHtml(data.recipient_name) : '') + '</div>';
+    html += '<h1>' + escapeHtml(data.title || 'Project documents') + '</h1>';
+    html += '<p class="project-line">' + escapeHtml(data.project_name || 'Exstructa project') + '</p>';
+    html += '<p class="greeting">' + (files.length) + ' file' + (files.length === 1 ? '' : 's') + ' ' + (files.length === 1 ? 'has' : 'have') + ' been shared with you below. Click Download to save a copy.</p>';
+    html += '<div class="file-list">';
+    files.forEach(function(f, i){
+      html +=
+        '<div class="file-row" data-file-id="' + escapeHtml(f.id) + '" data-storage-path="' + escapeHtml(f.storage_path) + '" data-filename="' + escapeHtml(f.filename || 'document') + '">' +
+          '<div class="file-icon">' + escapeHtml(fileExt(f.filename)) + '</div>' +
+          '<div class="file-info">' +
+            '<div class="file-label">' + escapeHtml(f.label || f.filename || 'Document') + '</div>' +
+            '<div class="file-name">' + escapeHtml(f.filename || '') + '</div>' +
+          '</div>' +
+          '<button type="button" class="dl-btn" data-idx="' + i + '">Download</button>' +
+        '</div>';
+    });
+    html += '</div>';
+    if (expiresText){
+      html += '<div class="expiry-note">' + escapeHtml(expiresText) + '</div>';
+    }
+    card.innerHTML = html;
+
+    card.querySelectorAll('.dl-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ handleDownload(btn); });
+    });
+  }
+
+  function handleDownload(btn){
+    var row = btn.closest('.file-row');
+    var fileId = row.getAttribute('data-file-id');
+    var storagePath = row.getAttribute('data-storage-path');
+    var filename = row.getAttribute('data-filename');
+
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = 'Downloading…';
+
+    supabaseClient.storage.from('project-files').download(storagePath).then(function(res){
+      if (res.error) throw res.error;
+      var blob = res.data;
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'document';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+
+      btn.textContent = 'Downloaded';
+      btn.classList.add('done');
+      showToast('Downloading ' + filename);
+
+      recordEvent('downloaded', fileId);
+    }).catch(function(e){
+      console.warn('download failed', e);
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      showToast("Couldn't download that file — try again in a moment.");
+    });
+  }
+
+  function recordEvent(eventType, fileId){
+    supabaseClient.rpc('record_document_share_event', {
+      p_token: getToken(),
+      p_event_type: eventType,
+      p_file_id: fileId || null
+    }).then(function(res){
+      if (res.error) console.warn('record_document_share_event failed', res.error);
+    });
+  }
+
+  function getToken(){
+    var params = new URLSearchParams(window.location.search);
+    return params.get('token') || '';
+  }
+
+  function init(){
+    var token = getToken();
+    if (!token){
+      renderState('error', "No access code in this link", "This link is missing the code that identifies which documents to show. Double-check you copied the whole link, or ask the sender to resend it.");
+      return;
+    }
+
+    supabaseClient.rpc('get_document_share', { p_token: token }).then(function(res){
+      if (res.error){
+        console.warn('get_document_share failed', res.error);
+        renderState('error', "Couldn't load this link", "Something went wrong loading these documents. Please try again shortly, or ask the sender for a new link.");
+        return;
+      }
+      var data = res.data;
+      if (!data || !data.found){
+        renderState('error', "This link isn't valid", "This link doesn't match any shared documents. It may have been mistyped, or the share may have been removed. Ask the sender for a new link.");
+        return;
+      }
+      if (data.revoked){
+        renderState('amber', "This link has been switched off", "The sender has revoked this share, so it's no longer available. Ask them for a new link if you still need these documents.");
+        return;
+      }
+      if (data.expires_at && new Date(data.expires_at) < new Date()){
+        renderState('amber', "This link has expired", "This share expired on " + fmtDate(data.expires_at) + ". Ask the sender for a new link if you still need these documents.");
+        return;
+      }
+      renderShare(data);
+      recordEvent('opened', null);
+    }).catch(function(e){
+      console.warn('get_document_share threw', e);
+      renderState('error', "Couldn't load this link", "Something went wrong loading these documents. Please try again shortly, or ask the sender for a new link.");
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
