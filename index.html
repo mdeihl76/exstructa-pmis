@@ -8787,7 +8787,7 @@ function authGate(){
       const style = document.createElement('style');
       style.id = 'auth-gate-style';
       style.textContent = `
-        #auth-gate{position:fixed;inset:0;background:var(--paper);z-index:99999;display:flex;font-family:var(--sans);}
+        #auth-gate{position:fixed;inset:0;background:var(--paper);z-index:99999;display:flex;font-family:var(--sans);overflow-y:auto;-webkit-overflow-scrolling:touch;}
         #auth-gate .ag-brand{
           flex:0 0 42%;min-width:320px;
           background:linear-gradient(160deg,var(--sidebar-bg),var(--sidebar-bg-2));
