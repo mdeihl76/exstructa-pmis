@@ -1852,39 +1852,86 @@
   #overview-project-details h4.groupline{border-bottom:none;}
   #overview-project-details{margin-bottom:16px;}
 
-  /* The Project Overview page previously pinned itself to exactly one screen
-     with scrolling disabled, force-shrinking the Financial Snapshot/Outstanding
-     Items cards (down to grid-auto-rows:1fr, with no floor) to whatever room
-     was left after the header and Project Details. That looked fine on a
-     large/tall monitor, but on a smaller laptop screen there wasn't always
-     enough vertical room even after shrinking — and with scrolling turned off,
-     the rest of the page was simply cut off with no way to reach it.
-     Fixed so the page behaves like every other Tool in the app: normal
-     document flow, laid out at a comfortable, readable size, scrolling via
-     the shared #main-scroll container (overflow-y:auto, set once near the top
-     of this stylesheet) whenever content is taller than the viewport. CSS
-     Grid's default align-items:stretch still lines up the photo panel and the
-     stats column automatically, without any manual height-pinning. */
-  .overview-lower-grid{min-height:320px;}
-  #overview-photo-widget{min-height:320px;}
-  .overview-stat-grid{grid-auto-rows:minmax(64px,auto);align-content:stretch;}
-  #overview-hero-photo{object-fit:cover;}
-  /* On a screen tall enough that Project Details + the photo/stats row don't
-     reach the bottom of the window, the leftover room used to just sit there
-     as blank grey space below everything — most visible as a much wider grey
-     margin under the page than above/beside it, since #main-scroll's own
-     padding (below) is deliberately taller than its other sides to give
-     scrolled content some breathing room. Rather than change that shared
-     padding (used by every Tool, not just this page), #view-overview is
-     grown to floor-fill the scroll container instead, so this page's own
-     content — not empty padding — is what fills a big screen. min-height:100%
-     is a floor only: on a short window this has no effect and the page still
-     scrolls normally exactly as before, nothing about the scrolling fix above
-     changes. */
-  #view-overview{display:flex;flex-direction:column;min-height:100%;margin-bottom:-50px;}
-  .overview-lower-grid{flex:1;}
-  #overview-stats-column{display:flex;flex-direction:column;}
-  #overview-stats-column .overview-stat-grid{flex:1;}
+  /* --- Overview page-fit rewrite (this revision) ---
+     Two earlier approaches to this page's height both had a real problem.
+     (1) Originally the page pinned itself to exactly one screen with
+     scrolling disabled, force-shrinking the Financial Snapshot/Outstanding
+     Items cards to whatever room was left — fine on a tall monitor, but on a
+     smaller laptop screen there wasn't always enough room even after
+     shrinking, and with scrolling off the rest of the page was simply
+     unreachable. (2) That was reverted to normal scrolling document flow
+     with a min-height:100% floor so a tall screen didn't show a big empty
+     grey gap below the page — but the floor did nothing to stop a SHORT
+     screen from needing to scroll, and on top of that, the hero photo's own
+     natural aspect ratio was inflating #overview-photo-widget's height
+     directly: the <img> had width/height:100% but no *definite* parent
+     height to resolve those percentages against, so it fell back to
+     rendering at its natural aspect ratio instead. Because CSS Grid's
+     default align-items:stretch matches every item in a row to that row's
+     tallest natural content, a tall/portrait photo dragged the Financial
+     Snapshot/Outstanding Items cards up in height right along with it —
+     which is what was actually forcing the scrolling.
+     Fixed properly this time, in two parts:
+     1) The photo no longer has any influence on its own box's size at all.
+        #overview-hero-photo is taken out of normal flow with
+        position:absolute + inset:0 inside a position:relative
+        #overview-photo-widget, so the <img> can't contribute to that box's
+        content-based height any more — its existing width:100%;height:100%;
+        object-fit:cover (see the HTML above, unchanged) now resolves
+        against a genuinely definite parent size instead of an undefined one.
+     2) #view-overview gets an actual height:100% (not just a min-height:100%
+        floor), so the page always exactly fills the space #main-scroll has
+        available — on both tall and short screens. .overview-lower-grid and
+        its two grid items get min-height:0 so they're actually allowed to
+        shrink to fit, rather than being blocked by the browser's automatic
+        content-based minimum size for flex/grid items, and
+        grid-template-rows:minmax(0,1fr) locks the photo/stats row to
+        exactly that available height regardless of what either side would
+        naturally need. With the photo no longer driving anything (per (1)
+        above), the Financial Snapshot/Outstanding Items cards are the only
+        real content-size driver left — comfortably one screen's worth on
+        any realistic laptop or monitor.
+     As a last-resort safety net only (not expected to trigger on any normal
+     screen) — rather than repeat the original mistake of disabling
+     scrolling outright — each .overview-stat-grid keeps its own
+     overflow-y:auto, so an extreme case (a very short window, heavy browser
+     zoom) gets a small internal scrollbar on just that one card grid
+     instead of either cutting content off completely or forcing the whole
+     dashboard to scroll. The hero photo and Project Details panel never
+     need to scroll either way. Scoped entirely to this page via
+     #view-overview / #overview-* selectors — every other Tool keeps its
+     normal, uncapped, #main-scroll-scrolls-when-needed behaviour exactly as
+     before. */
+  #overview-photo-widget{position:relative;min-height:0;}
+  #overview-hero-photo{position:absolute;inset:0;object-fit:cover;}
+  .overview-stat-grid{grid-auto-rows:minmax(64px,auto);align-content:stretch;overflow-y:auto;}
+  #view-overview{display:flex;flex-direction:column;height:100%;}
+  .overview-lower-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);}
+  #overview-stats-column{display:flex;flex-direction:column;min-height:0;}
+  #overview-stats-column .overview-stat-grid{flex:1;min-height:0;}
+  /* #main-scroll's bottom padding is deliberately taller than its other
+     sides everywhere else in the app, to give scrolled content some
+     breathing room — irrelevant here now that this page never scrolls, and
+     it would only eat into the vertical space available for the cards
+     above. Reduced to match the other sides specifically when Overview is
+     the active tab (body.overview-active is already toggled in switchTab(),
+     previously unused by any CSS rule). */
+  body.overview-active #main-scroll{padding-bottom:40px;}
+  /* At common laptop heights (measured: 1366x768 leaves each stat-card row
+     ~49px against the 64px floor above, which was quietly leaning on the
+     .overview-stat-grid safety-net scroll from the very first realistic
+     screen size — not just the deliberately extreme short-window case that
+     safety net exists for). Tightened spacing/type reclaims that room so
+     these ordinary laptop heights fit without it; anything taller than this
+     breakpoint keeps the roomier default sizing above untouched. */
+  @media (max-height:820px){
+    #view-overview h4.groupline{font-size:15px;padding-bottom:5px;margin-bottom:4px;}
+    .overview-stat-grid{gap:8px;grid-auto-rows:minmax(50px,auto);}
+    .overview-stat-grid .statcard{padding:9px 12px;}
+    .overview-stat-grid .statcard .lbl{font-size:9px;}
+    .overview-stat-grid .statcard .val{font-size:15px;margin-top:3px;}
+    .overview-stat-grid .statcard .sub{font-size:9.5px;margin-top:2px;}
+  }
 
   .search-row{display:flex;gap:10px;margin-bottom:14px;}
   .search-row input{
@@ -8904,7 +8951,7 @@ function authGate(){
           </div>
           <h1>Run the whole project from one application.</h1>
           <p>Project inception through to the end of defects liability — tendering, budget, payment claims, variations, subcontractors, drawings and more all in one place, shared across the project team.</p>
-          <div class="ag-brand-foot">Exstructa PMIS</div>
+          <div class="ag-brand-foot">Exstructa</div>
         </div>
         <div class="ag-formside"><div class="ag-panel" id="ag-panel"></div></div>
       `;
