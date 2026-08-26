@@ -149,6 +149,16 @@
        stretch, so a button next to a two-line one still matches its height. */
     white-space:normal;
     word-break:normal;
+    /* Fixed to fit two wrapped lines + padding, so a row made entirely of
+       one-line buttons (e.g. Tendering / Project Directory) is just as tall
+       as a row containing a wrapped one (e.g. Budget / Cost Control) —
+       previously one-line rows looked noticeably shorter. flex centering
+       keeps a one-line label sitting in the middle of the taller box rather
+       than hugging the top. */
+    min-height:54px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
   }
   .tab-btn:hover{background:rgba(255,255,255,0.08);color:#e7e7ea;}
   .tab-btn.active{
@@ -1183,63 +1193,82 @@
      panel's right edge; shift the totals block values in by the same 52px so they line up. */
   #view-variation-breakdown .final-row .val{padding-right:52px;}
 
-  /* ---------- INTERNAL TRADE PRICING ---------- */
-  /* Column widths are set inline on the header cells (table-layout:fixed respects them).
-     Monetary columns (Supply $, Total Supply, Total Lab, Total Value $) and the % markup
-     columns (Waste, Delivery, Fixings) are right-aligned via the .num class; Qty and Lab
-     Constant are quantities, not money or a percentage, so they stay left-aligned. Supply($)
-     is a text-based money input (no browser number spinner); the % inputs are still native
-     number fields, so — same fix as Rate needed on the Variation Breakdown table — their
-     spinner is hidden so the digits actually reach the header's right edge instead of
-     sitting to the left of it. */
-  #internal-pricing-table{table-layout:fixed;width:100%;}
-  /* Column order: Item, Description, Takeoff, Qty, Factor, Height, Width, Ext. Qty, UOM,
-     Supply, Waste, Delivery, Fixings, Total Supply, Lab Con, Total Lab, Total Value, (del).
-     Cells are squeezed slightly tighter than the app's default table padding so the three
-     added dimension columns (Height/Width/Ext. Qty) fit without the sheet overflowing. */
+  /* ---------- INTERNAL TRADE PRICING (Rev16 — Manual Takeoff Template layout) ---------- */
+  .field-note{font-size:11px;color:var(--muted);}
+  /* Quantity Method — a worksheet-wide rule (Manual Takeoff vs Pull from Takeoff Tool),
+     sitting next to the Default Labour Rate at the top of the worksheet, same idea as
+     that field: set once for the whole worksheet rather than per line. Reuses the
+     app's existing .subdet-nav-btn sub-tool button styling (grey on white, gold when
+     selected) instead of a bespoke button style. */
+  /* Column order: Item, Description, Unit, Quantity, Labour Factor, Total Hours,
+     Labour Rate, Labour Amount, Materials Rate, Materials Amount, Plant/Sundry Rate,
+     Plant/Sundry Amount, Subcontractors Rate, Subcontractors Amount, Total Rate, Total
+     Amount, (del) — 17 columns, widths set inline on header cells and summing to
+     exactly 100% (table-layout:fixed only holds columns to their declared widths
+     reliably when they add up correctly — a set that didn't sum to 100% was the root
+     cause of the earlier column-misalignment issue). Rate/Amount columns right-align
+     via .num; Labour Factor/Total Hours are quantities, not money, but still
+     right-align for column-scan readability. Font size is reduced from the app's
+     usual 12.5px table default, scoped to this table only, to fit 17 columns without
+     the sheet feeling cramped or needing to scroll. */
+  #internal-pricing-table{table-layout:fixed;width:100%;font-size:10.5px;}
   #internal-pricing-table th,
-  #internal-pricing-table td{padding-left:5px;padding-right:5px;}
-  #internal-pricing-table input.ip-pct-input::-webkit-outer-spin-button,
-  #internal-pricing-table input.ip-pct-input::-webkit-inner-spin-button,
-  #internal-pricing-table input.ip-labcon-input::-webkit-outer-spin-button,
-  #internal-pricing-table input.ip-labcon-input::-webkit-inner-spin-button,
+  #internal-pricing-table td{padding-left:4px;padding-right:4px;}
+  #internal-pricing-table input,
+  #internal-pricing-table select{font-size:10.5px;}
+  /* Column headers wrap onto two lines instead of truncating with an ellipsis — with
+     17 columns there isn't room for most of these labels on one line, and a wrapped
+     header stays fully readable where a clipped one doesn't. */
+  #internal-pricing-table th{overflow:visible;text-overflow:clip;white-space:normal;line-height:1.25;vertical-align:bottom;}
+  #internal-pricing-table input.ip-rate-input::-webkit-outer-spin-button,
+  #internal-pricing-table input.ip-rate-input::-webkit-inner-spin-button,
   #internal-pricing-table input.ip-dim-input::-webkit-outer-spin-button,
   #internal-pricing-table input.ip-dim-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
-  #internal-pricing-table input.ip-pct-input,
-  #internal-pricing-table input.ip-labcon-input,
+  #internal-pricing-table input.ip-rate-input,
   #internal-pricing-table input.ip-dim-input{-moz-appearance:textfield;}
-  /* Squeeze the Takeoff pull button in tight against the Qty column it fills. Scoped to
-     the body (not the bare table) because the Sub Total row's colspan collapses many
-     columns into one <td>, which shifts its DOM child indices — an unscoped nth-child
-     rule here would wrongly reach into that row's Total Lab cell instead. */
-  #internal-pricing-body td:nth-child(3){padding-right:3px;text-align:right;}
-  #internal-pricing-body td:nth-child(4){padding-left:3px;}
-  /* Factor / Height / Width sit together as one dimension-input group, and Waste /
-     Deliver / Fixing as another — tighter gaps within each group than the table's
-     default cell padding. */
-  #internal-pricing-table th:nth-child(5), #internal-pricing-body td:nth-child(5),
-  #internal-pricing-table th:nth-child(11), #internal-pricing-body td:nth-child(11){padding-right:2px;}
-  #internal-pricing-table th:nth-child(6), #internal-pricing-body td:nth-child(6),
-  #internal-pricing-table th:nth-child(12), #internal-pricing-body td:nth-child(12){padding-left:2px;padding-right:2px;}
-  #internal-pricing-table th:nth-child(7), #internal-pricing-body td:nth-child(7),
-  #internal-pricing-table th:nth-child(13), #internal-pricing-body td:nth-child(13){padding-left:2px;}
-  /* Ext. Qty keeps the table's normal padding on its left so it doesn't read as
-     part of the Factor/Height/Width group. */
-  #internal-pricing-table th:nth-child(8), #internal-pricing-body td:nth-child(8){padding-left:5px;}
-  /* Lab Con sits between Total Supply and Total Lab. Its content is centred, but a
-     touch more padding on the left than the right nudges it visibly rightward within
-     its column, closer to the middle of the gap between the two Total columns. */
-  #internal-pricing-table th:nth-child(15), #internal-pricing-body td:nth-child(15){padding-left:9px;padding-right:3px;}
-  /* Factor / Height / Width / Waste / Delivery / Fixings read as multipliers/percentages
-     rather than money, so their values are centred in their column instead of
-     right-aligned like the dollar figures either side of them. */
-  #internal-pricing-table input.ip-factor-input,
-  #internal-pricing-table input.ip-dim-input,
-  #internal-pricing-table input.ip-pct-input{text-align:center;}
   /* The delete ("✕") button is sized down slightly for this table only so it fits
      cleanly inside its narrow column instead of being clipped by the sheet's
      horizontal scroll container. */
-  #internal-pricing-table .iconbtn{width:22px;height:22px;font-size:11px;}
+  #internal-pricing-table .iconbtn{width:20px;height:20px;font-size:10px;}
+  /* ---- Qty cell — just the value plus (in Manual mode) an Edit-rows toggle. No unit
+     or row-count suffix on the readout itself; that was cluttering a cell that should
+     just read as a number, matching every other quantity/amount cell in the table. ---- */
+  .ip-qty-value-row{display:flex;align-items:center;gap:6px;}
+  .ip-qty-readout{font-weight:600;}
+  /* ---- Manual takeoff nested editor — a full-width row directly under the item's
+     main row, shown only while that item's "Edit rows" is expanded. Deliberately a
+     bordered card (same convention as the H&S Sequence of Steps blocks) rather than
+     a plain nested sub-table row, so it reads clearly as "inside" the item above it.
+     No hover/focus background shift on the card or its inputs — the app's default
+     table-row and input hover styles (table.data tr:hover, table.data input:hover)
+     would otherwise grey out the whole editor as the cursor moves over it or while
+     typing, which read as a glitch rather than a state change worth signalling here. */
+  .ip-manual-editor{background:var(--line-soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:2px 0 6px;}
+  #internal-pricing-table tr.ip-manual-row:hover td{background:transparent;}
+  .ip-manual-editor input:hover,
+  .ip-manual-editor input:focus{background:#fff;}
+  /* table-layout:fixed with explicit widths on every header cell (summing to
+     exactly 100%) — same fix as the main worksheet table above: auto layout can
+     drift columns out of alignment between rows as content length varies, fixed
+     widths guarantee every row's cells line up under their header regardless. */
+  .ip-manual-table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed;}
+  .ip-manual-table th{font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:left;padding:2px 4px;font-weight:600;}
+  .ip-manual-table td{padding:2px 4px;overflow:hidden;text-overflow:ellipsis;}
+  .ip-manual-table th.num, .ip-manual-table td.num{text-align:right;}
+  .ip-manual-table input{width:100%;font-size:10.5px;}
+  /* The numeric inputs (Dim 1/2/3, Multiplier, Waste %) sit inside right-aligned
+     .num cells, but text-align on a <td> doesn't reliably cascade into an <input>
+     across browsers — the input itself needs its own text-align, or its typed
+     value renders left-aligned under a right-aligned header even though the cell
+     is correctly positioned. This was the real cause of the column values reading
+     as misaligned from their headers. */
+  .ip-manual-table input.ip-dim-input{text-align:right;}
+  .ip-manual-subtotal{font-weight:600;white-space:nowrap;}
+  /* Sum Total row — part of the same table/column grid as the header and body
+     above (a real <tfoot>, not a separate line), so its value lands directly
+     under the "Sub-total" header rather than needing to be manually lined up.
+     No divider rule above it (per earlier feedback removing the grey line here). */
+  .ip-manual-table tfoot td{padding-top:6px;}
   /* Heading rows (+ Add heading) are section dividers inserted between priced
      lines — the input should read as part of the bold heading-row label, not
      as an ordinary editable cell. */
@@ -1422,13 +1451,26 @@
      sheet used to have on its own — having one worksheet's fields start grey
      and turn white on click while every other worksheet's fields were already
      white made the app feel inconsistent field-to-field. */
-  #comm-subject, #comm-detail, #comm-cause, #comm-response{
+  #comm-subject, #comm-detail, #comm-cause, #comm-response,
+  #comm-wu-work, #comm-wu-subs, #comm-wu-deliveries, #comm-wu-delays, #comm-wu-incidents,
+  #comm-cr-hs, #comm-cr-construction, #comm-cr-upcoming, #comm-cr-design, #comm-cr-consent, #comm-cr-admin, #comm-cr-general{
     width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:8px;
     font-family:var(--sans);font-size:12.5px;background:#fff;resize:vertical;
   }
-  #comm-subject:focus, #comm-detail:focus, #comm-cause:focus, #comm-response:focus{
+  #comm-subject:focus, #comm-detail:focus, #comm-cause:focus, #comm-response:focus,
+  #comm-wu-work:focus, #comm-wu-subs:focus, #comm-wu-deliveries:focus, #comm-wu-delays:focus, #comm-wu-incidents:focus,
+  #comm-cr-hs:focus, #comm-cr-construction:focus, #comm-cr-upcoming:focus, #comm-cr-design:focus, #comm-cr-consent:focus, #comm-cr-admin:focus, #comm-cr-general:focus{
     outline:none;border-color:var(--accent);
   }
+  /* Weekly Update worksheet is a five-field-plus-distribution form that would
+     otherwise run long with the app's normal 16px inter-field spacing — tightened
+     specifically here (rather than app-wide) so a WU record fits with noticeably
+     less scrolling than the letter-style RFI/SI/NOD/EOT worksheets, which keep
+     the normal spacing since they carry far fewer fields each. */
+  #comm-wu-section .subdet-field{margin-bottom:10px;}
+  #comm-wu-section .vo-report-bar{margin:0 0 8px;}
+  #comm-cr-section .subdet-field{margin-bottom:10px;}
+  #comm-cr-section .vo-report-bar{margin:0 0 8px;}
   .vo-report-field input, .vo-report-field select{
     width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:12.5px;background:#fff;box-sizing:border-box;
   }
@@ -2071,6 +2113,13 @@
      already tightened to 3px/8px for print below) — single-space these rows to match. */
   #ip-report-sheet table.report-table td{padding:3px 8px;}
   #ip-report-sheet table.report-table th{padding:0 8px 3px;}
+  /* Column headers have their own explicit font-size in the shared report-table
+     rule above, so setting font-size on the table element alone (which only
+     reaches plain td cells by inheritance) doesn't shrink them — headers need
+     their own override here, matched to each report mode's own body text size,
+     so the header row and the data rows below it actually read at the same size. */
+  #ip-report-sheet table.ip-report-full th{font-size:9.5px;}
+  #ip-report-sheet table.ip-report-blank th{font-size:10.5px;}
   .no-print{}
 
   /* ---------- RETENTION INLINE EDITOR (Payment Claim) ---------- */
@@ -4115,10 +4164,7 @@
 
   <div class="side-tabs">
     <button class="tab-btn active" id="tab-overview" data-tab="overview" style="grid-column:1 / -1;">Project Overview</button>
-    <button class="tab-btn" id="tab-analysis" data-tab="analysis">Tender Analysis</button>
-    <button class="tab-btn" id="tab-gantt" data-tab="gantt">Tender Programme</button>
-    <button class="tab-btn" id="tab-summary" data-tab="summary">Trade Summary</button>
-    <button class="tab-btn" id="tab-drawings" data-tab="drawings">Takeoff</button>
+    <button class="tab-btn" id="tab-tendering" data-tab="tendering">Tendering</button>
     <button class="tab-btn" id="tab-project-directory" data-tab="project-directory">Project Directory</button>
     <button class="tab-btn" id="tab-gantt2" data-tab="gantt2">Programme</button>
     <button class="tab-btn" id="tab-budget" data-tab="budget">Budget / Cost Control</button>
@@ -4179,14 +4225,6 @@
   </div>
 
   <div id="main-scroll">
-  <div class="meta-inputs-panel">
-    <div class="meta-inputs">
-      <div class="meta-field" style="flex:1;"><label>Tender closing date</label><input id="meta-date" type="date" style="width:100%;"></div>
-      <div class="meta-field"><label>Estimator</label><input id="meta-estimator" type="text"></div>
-      <div class="meta-field"><label>Contract value</label><input id="meta-contract-value" class="mono" type="text" inputmode="decimal"><button class="sync-btn" id="sync-contract-value" type="button">use tender total</button></div>
-      <div class="meta-field"><label>GST %</label><input id="meta-gst-rate" class="mono" type="text" style="min-width:50px;" inputmode="decimal"></div>
-    </div>
-  </div>
   <!-- ============ PROJECT OVERVIEW DASHBOARD ============ -->
   <div id="view-overview">
     <div class="panel-card" id="overview-project-details">
@@ -4234,44 +4272,84 @@
   </div>
 
   <!-- ============ TENDER ANALYSIS ============ -->
+  <!-- ============ TENDERING — shared sub-nav ============
+       Sits once, right before Trade Pricing, so it renders directly above
+       whichever of the three underlying views (analysis/drawings/summary —
+       still separate top-level views internally, unchanged) is currently
+       visible; every div between it and whichever view is active is
+       display:none and contributes no layout height, so this stays pinned
+       to the top of the Tendering tool regardless of source order. -->
+  <div class="subdet-nav" id="tendering-nav" style="margin-bottom:16px;">
+    <button class="subdet-nav-btn active" data-tsection="analysis" type="button">Trade Pricing</button>
+    <button class="subdet-nav-btn" data-tsection="gantt" type="button">Tender Programme</button>
+    <button class="subdet-nav-btn" data-tsection="drawings" type="button">Takeoff</button>
+    <button class="subdet-nav-btn" data-tsection="summary" type="button">Summary</button>
+  </div>
+
   <div id="view-analysis" style="display:none;">
-    <div class="search-row"><input id="trade-search" placeholder="Search trades by name or cost code…"></div>
+    <!-- Buttons + search sit together at the top, above the Tender closing date row
+         below — same "action row above the working fields" pattern used on the
+         Photos tab (search + Add Album together at top). -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="search-row" style="flex:1;min-width:200px;margin-bottom:0;"><input id="trade-search" placeholder="Search trades by name or cost code…"></div>
+      <button id="add-trade-btn" type="button" style="width:auto;white-space:nowrap;margin:0;">+ Add trade</button>
+    </div>
+    <div class="meta-inputs-panel">
+      <div class="meta-inputs">
+        <div class="meta-field" style="flex:1;"><label>Tender closing date</label><input id="meta-date" type="date" style="width:100%;"></div>
+        <div class="meta-field"><label>Estimator</label><input id="meta-estimator" type="text"></div>
+        <div class="meta-field"><label>Contract value</label><input id="meta-contract-value" class="mono" type="text" inputmode="decimal"><button class="sync-btn" id="sync-contract-value" type="button">use tender total</button></div>
+        <div class="meta-field"><label>GST %</label><input id="meta-gst-rate" class="mono" type="text" style="min-width:50px;" inputmode="decimal"></div>
+      </div>
+    </div>
     <div id="trades-container"></div>
-    <button id="add-trade-btn">+ Add trade</button>
   </div>
 
   <!-- ============ INTERNAL TRADE PRICING ============ -->
   <div id="view-internal-pricing" style="display:none;">
     <div class="panel-card">
-      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:14px;">
-        <button class="vo-back-btn" id="close-internal-pricing" type="button">← Close &amp; return to Tender Analysis</button>
+      <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button class="vo-back-btn" id="close-internal-pricing" type="button">← Close &amp; return to Trade Pricing</button>
+        <div class="vo-report-actions">
+          <button class="btn btn-teal" id="ip-report-open-btn" type="button">Print / Save as PDF</button>
+        </div>
       </div>
 
-      <div class="meta-field" style="max-width:200px;margin-bottom:16px;">
-        <label for="ip-labour-rate">Labour Rate ($/hr)</label>
-        <input id="ip-labour-rate" class="mono" type="text" inputmode="decimal">
+      <div style="display:flex;align-items:flex-start;gap:64px;flex-wrap:wrap;margin-bottom:16px;">
+        <div class="meta-field" style="max-width:220px;">
+          <label for="ip-labour-rate">Default Labour Rate ($/hr)</label>
+          <input id="ip-labour-rate" class="mono" type="text" inputmode="decimal">
+          <p class="field-note" style="margin:4px 0 0;">Fills new lines only — each line's own Labour Rate can be edited independently afterwards.</p>
+        </div>
+        <div class="meta-field">
+          <label>Quantity Method</label>
+          <div style="display:flex;gap:6px;">
+            <button class="subdet-nav-btn" id="ip-qty-method-manual" type="button">Manual Takeoff</button>
+            <button class="subdet-nav-btn" id="ip-qty-method-takeoff" type="button">Pull from Takeoff Tool</button>
+          </div>
+          <p class="field-note" style="margin:4px 0 0;">A worksheet-wide rule, same as the Labour Rate — every line uses whichever method is selected here.</p>
+        </div>
       </div>
 
       <div class="scrollx ip-noscroll"><table class="data" id="internal-pricing-table">
         <thead><tr>
-          <th style="width:2.9%;">Item</th>
-          <th>Description</th>
-          <th style="width:6%;text-align:right;">Takeoff</th>
-          <th class="num" style="width:3.8%;">Qty</th>
-          <th class="num" style="width:4.6%;text-align:center;" title="Simple multiplier applied to Qty, e.g. 2 (sides) x 3 = 6">Factor</th>
-          <th class="num" style="width:4.6%;text-align:center;" title="Height, e.g. wall height in metres">Height</th>
-          <th class="num" style="width:4.6%;text-align:center;" title="Width, e.g. wall length in metres">Width</th>
-          <th class="num" style="width:4.6%;" title="Qty × Factor × Height × Width — the quantity actually costed below">Ext. Qty</th>
-          <th style="width:2.6%;">UOM</th>
-          <th class="num" style="width:4.6%;">Supply</th>
-          <th class="num" style="width:4.6%;text-align:center;">Waste (%)</th>
-          <th class="num" style="width:4.6%;text-align:center;">Deliver (%)</th>
-          <th class="num" style="width:4.6%;text-align:center;">Fixing (%)</th>
-          <th class="num" style="width:5.2%;">Total Supply</th>
-          <th style="width:4.2%;text-align:center;">Lab Con</th>
-          <th class="num" style="width:4.4%;">Total Lab</th>
-          <th class="num" style="width:7.1%;">Total Value</th>
-          <th style="width:2.8%;"></th>
+          <th style="width:2.5%;">Item</th>
+          <th style="width:18%;">Description of Work</th>
+          <th style="width:3%;">Unit</th>
+          <th style="width:6%;">Quantity</th>
+          <th class="num" style="width:5%;" title="Hours per unit of Qty">Lab Constant</th>
+          <th class="num" style="width:5%;" title="Qty × Labour Factor">Total Hours</th>
+          <th class="num" style="width:5.5%;">Lab Rate</th>
+          <th class="num" style="width:6%;">Lab Amount</th>
+          <th class="num" style="width:5.5%;">Mat Rate</th>
+          <th class="num" style="width:6%;">Mat Amount</th>
+          <th class="num" style="width:5.5%;">Plant / Sundry Rate</th>
+          <th class="num" style="width:6%;">Plant / Sundry Amount</th>
+          <th class="num" style="width:5.5%;">Sub Rate</th>
+          <th class="num" style="width:6%;">Sub Amount</th>
+          <th class="num" style="width:5.5%;">Total Rate</th>
+          <th class="num" style="width:6.5%;">Total Amount</th>
+          <th style="width:2.5%;"></th>
         </tr></thead>
         <tbody id="internal-pricing-body"></tbody>
         <tfoot id="internal-pricing-foot"></tfoot>
@@ -4282,15 +4360,6 @@
       <div class="extra-block">
         <div class="final-block">
           <div class="final-row grand"><div>Trade Total</div><div class="val" id="ip-total">0</div></div>
-        </div>
-      </div>
-
-      <div class="extra-block">
-        <h3 style="margin:18px 0 10px;">Print Reports</h3>
-        <div class="vo-report-bar">
-          <div class="vo-report-actions">
-            <button class="btn btn-teal" id="ip-report-open-btn" type="button">Print / Save as PDF</button>
-          </div>
         </div>
       </div>
     </div>
@@ -4315,7 +4384,7 @@
   <div id="view-pg" style="display:none;">
     <div class="panel-card">
       <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:14px;">
-        <button class="vo-back-btn" id="close-pg-worksheet" type="button">← Close &amp; return to Tender Analysis</button>
+        <button class="vo-back-btn" id="close-pg-worksheet" type="button">← Close &amp; return to Trade Pricing</button>
       </div>
       <div class="scrollx"><table class="data" id="pg-table">
         <thead><tr><th style="width:32px;"></th><th>Item</th><th class="num" style="width:80px;">Duration</th><th class="num" style="width:90px;">Qty</th><th style="width:70px;">UOM</th><th class="num" style="width:100px;">Rate</th><th class="num" style="width:110px;">Total</th></tr></thead>
@@ -5660,6 +5729,8 @@
         <button class="subdet-nav-btn" data-comm-filter="SI" type="button">Site Instructions</button>
         <button class="subdet-nav-btn" data-comm-filter="NOD" type="button">Notices of Delay</button>
         <button class="subdet-nav-btn" data-comm-filter="EOT" type="button">EOT Requests</button>
+        <button class="subdet-nav-btn" data-comm-filter="WU" type="button">Weekly Updates</button>
+        <button class="subdet-nav-btn" data-comm-filter="CR" type="button">Contractors Reports</button>
       </div>
       <p class="page-sub" id="comms-register-count" style="margin:0 0 16px;">0 communications on file.</p>
       <div class="scrollx"><table class="data" id="comms-register-table">
@@ -5700,6 +5771,8 @@
             <option value="SI">SI — Site Instruction</option>
             <option value="NOD">NOD — Notice of Delay</option>
             <option value="EOT">EOT — Extension of Time</option>
+            <option value="WU">WU — Weekly Update</option>
+            <option value="CR">CR — Contractors Report</option>
           </select>
         </div>
         <div class="vo-report-field">
@@ -5707,27 +5780,27 @@
           <input type="text" id="comm-ref" class="readout" readonly="">
         </div>
         <div class="vo-report-field">
-          <label class="lbl-block">Status</label>
+          <label class="lbl-block" id="comm-status-label">Status</label>
           <select id="comm-status">
-            <option>Open</option><option>Responded</option><option>Closed</option>
+            <option>Open</option><option id="comm-status-responded-opt">Responded</option><option id="comm-status-closed-opt">Closed</option>
           </select>
         </div>
-        <div class="vo-report-field">
+        <div class="vo-report-field" id="comm-linked-sub-field">
           <label class="lbl-block">Linked Subcontractor</label>
           <select id="comm-subcontractor"></select>
         </div>
       </div>
 
       <div class="vo-report-bar">
-        <div class="vo-report-field">
+        <div class="vo-report-field" id="comm-to-company-field">
           <label class="lbl-block">To (Company)</label>
           <input type="text" id="comm-to-company" autocomplete="off">
         </div>
-        <div class="vo-report-field">
+        <div class="vo-report-field" id="comm-to-contact-field">
           <label class="lbl-block">Attn (Contact)</label>
           <input type="text" id="comm-to-contact" autocomplete="off">
         </div>
-        <div class="vo-report-field">
+        <div class="vo-report-field" id="comm-to-email-field">
           <label class="lbl-block">Email</label>
           <input type="email" id="comm-to-email" autocomplete="off">
         </div>
@@ -5735,18 +5808,18 @@
           <label class="lbl-block">Date Raised</label>
           <input type="date" id="comm-date-raised">
         </div>
-        <div class="vo-report-field">
+        <div class="vo-report-field" id="comm-due-date-field">
           <label class="lbl-block" id="comm-due-label">Response Due</label>
           <input type="date" id="comm-due-date">
         </div>
       </div>
 
-      <div class="subdet-field">
+      <div class="subdet-field" id="comm-subject-field">
         <label class="lbl-block">Subject</label>
         <input type="text" id="comm-subject" placeholder="Brief subject line">
       </div>
 
-      <div class="subdet-field">
+      <div class="subdet-field" id="comm-detail-block">
         <label class="lbl-block" id="comm-detail-label">Question / Information Requested</label>
         <textarea id="comm-detail" rows="4"></textarea>
       </div>
@@ -5769,10 +5842,15 @@
       </div>
 
       <div class="subdet-field" id="comm-cause-field">
-        <label class="lbl-block" id="comm-cause-label">Cause of Delay</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <label class="lbl-block" id="comm-cause-label" style="margin:0;">Cause of Delay</label>
+          <button type="button" class="btn btn-teal" id="comm-cause-ai-draft" style="font-size:10.5px;flex:none;padding:5px 10px;display:none;">Draft with AI</button>
+        </div>
         <textarea id="comm-cause" rows="2"></textarea>
+        <div id="comm-cause-ai-hint" style="display:none;font-size:11px;color:#8a6d00;margin-top:4px;">AI-drafted — review and edit before issuing. This is a starting point, not a final notice.</div>
       </div>
 
+      <div id="comm-response-block">
       <div class="subdet-field">
         <label class="lbl-block" id="comm-response-label">Response / Information Provided</label>
         <textarea id="comm-response" rows="4"></textarea>
@@ -5780,6 +5858,109 @@
       <div class="vo-report-field" style="max-width:220px;">
         <label class="lbl-block">Response Date</label>
         <input type="date" id="comm-response-date">
+      </div>
+      </div>
+
+      <div id="comm-wu-section" style="display:none;">
+        <div class="vo-report-bar">
+          <div class="vo-report-field" style="max-width:180px;">
+            <label class="lbl-block">Week Starting</label>
+            <input type="date" id="comm-wu-week-start">
+          </div>
+          <div class="vo-report-field" style="max-width:180px;">
+            <label class="lbl-block">Week Ending</label>
+            <input type="date" id="comm-wu-week-end">
+          </div>
+          <div class="vo-report-field" style="flex:none;align-self:flex-end;display:flex;gap:8px;">
+            <button type="button" class="btn btn-teal" id="comm-wu-pull" style="font-size:10.5px;padding:8px 12px;">Pull from Site Diary</button>
+            <button type="button" class="btn btn-teal" id="comm-wu-ai-draft" style="font-size:10.5px;padding:8px 12px;" disabled>Draft with AI</button>
+          </div>
+        </div>
+        <div id="comm-wu-pull-readout" style="font-size:11px;color:#6b7a80;margin:-4px 0 4px 2px;"></div>
+        <div id="comm-wu-ai-hint" style="display:none;font-size:11px;color:#8a6d00;margin:0 0 8px 2px;">AI-drafted from the Site Diary pull above — review before sending. Check nothing here should stay internal-only, and add anything the diary doesn't capture.</div>
+
+        <div class="subdet-field">
+          <label class="lbl-block">Work Performed</label>
+          <textarea id="comm-wu-work" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Subcontractors &amp; Labour</label>
+          <textarea id="comm-wu-subs" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Deliveries</label>
+          <textarea id="comm-wu-deliveries" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Delays</label>
+          <textarea id="comm-wu-delays" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Incidents &amp; Other</label>
+          <textarea id="comm-wu-incidents" rows="2"></textarea>
+        </div>
+        <div class="vo-report-bar">
+          <div class="vo-report-field" style="flex:1 1 100%;">
+            <label class="lbl-block">Distribution List</label>
+            <input type="text" id="comm-wu-distribution" placeholder="e.g. Client PM, Consultant, Site Team">
+          </div>
+        </div>
+      </div>
+
+      <div id="comm-cr-section" style="display:none;">
+        <div class="vo-report-bar">
+          <div class="vo-report-field" style="max-width:180px;">
+            <label class="lbl-block">Period Starting</label>
+            <input type="date" id="comm-cr-period-start">
+          </div>
+          <div class="vo-report-field" style="max-width:180px;">
+            <label class="lbl-block">Period Ending</label>
+            <input type="date" id="comm-cr-period-end">
+          </div>
+          <div class="vo-report-field" style="flex:none;align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-teal" id="comm-cr-pull-diary" style="font-size:10.5px;padding:8px 12px;">Pull from Site Diary</button>
+            <button type="button" class="btn btn-teal" id="comm-cr-pull-admin" style="font-size:10.5px;padding:8px 12px;">Pull Open Items</button>
+            <button type="button" class="btn btn-teal" id="comm-cr-ai-draft" style="font-size:10.5px;padding:8px 12px;" disabled>Draft with AI</button>
+          </div>
+        </div>
+        <div id="comm-cr-pull-readout" style="font-size:11px;color:#6b7a80;margin:-4px 0 2px 2px;"></div>
+        <div id="comm-cr-admin-readout" style="font-size:11px;color:#6b7a80;margin:0 0 4px 2px;"></div>
+        <div id="comm-cr-ai-hint" style="display:none;font-size:11px;color:#8a6d00;margin:0 0 8px 2px;">AI-drafted from the pulls above — review before sending. Check nothing here should stay internal-only, and add anything the pulls don't capture (Upcoming Works and Design in particular have no automatic source).</div>
+
+        <div class="subdet-field">
+          <label class="lbl-block">Health &amp; Safety</label>
+          <textarea id="comm-cr-hs" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Construction</label>
+          <textarea id="comm-cr-construction" rows="3"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Upcoming Works</label>
+          <textarea id="comm-cr-upcoming" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Design</label>
+          <textarea id="comm-cr-design" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Consent Status</label>
+          <textarea id="comm-cr-consent" rows="2"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">Admin &amp; Financial <span style="font-weight:400;color:var(--muted);">(RFIs, Claims &amp; Variations)</span></label>
+          <textarea id="comm-cr-admin" rows="3"></textarea>
+        </div>
+        <div class="subdet-field">
+          <label class="lbl-block">General</label>
+          <textarea id="comm-cr-general" rows="2"></textarea>
+        </div>
+        <div class="vo-report-bar">
+          <div class="vo-report-field" style="flex:1 1 100%;">
+            <label class="lbl-block">Distribution List</label>
+            <input type="text" id="comm-cr-distribution" placeholder="e.g. Client PM, Consultant, Site Team">
+          </div>
+        </div>
       </div>
       </div>
 
@@ -5801,7 +5982,7 @@
         <div id="comm-linked-list"></div>
       </div>
 
-      <div class="comm-section">
+      <div class="comm-section" id="comm-issue-si-section">
         <h3 style="margin:0 0 10px;">Issue to Subcontractor(s)</h3>
         <p class="page-sub" style="margin:0 0 10px;">Create a Site Instruction (carrying over the subject, detail and any attachment above) for one or more subcontractors — e.g. issuing a client instruction received against this RFI.</p>
         <button class="btn btn-teal" id="comm-issue-si-toggle" type="button">Issue as Site Instruction…</button>
@@ -7706,6 +7887,14 @@ function nextCommRef(type){
 }
 function freshCommunication(type){
   const t = COMM_TYPES.some(ct => ct.key === type) ? type : 'RFI';
+  const today = new Date();
+  const weekEndDefault = t === 'WU' ? sdISODate(today) : '';
+  const weekStartDefault = t === 'WU' ? sdISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)) : '';
+  // CR defaults to a fortnight ending today, editable — Contractors Reports
+  // are issued fortnightly or monthly ahead of a site meeting, so unlike WU's
+  // fixed week there's no single "right" period length to lock in.
+  const periodEndDefault = t === 'CR' ? sdISODate(today) : '';
+  const periodStartDefault = t === 'CR' ? sdISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13)) : '';
   return {
     id: uid(),
     type: t,
@@ -7729,7 +7918,25 @@ function freshCommunication(type){
     notes: '',
     attachments: [],   // [{id, filename, dataUrl, sizeBytes, uploadedDate}]
     sourceCommId: '',  // set when this record was issued (e.g. as an SI) from another communication
-    linkedCommIds: []  // ids of communications issued FROM this one
+    linkedCommIds: [], // ids of communications issued FROM this one
+    // WU (Weekly Update) only — a date-range pull from Site Diary, summarized into
+    // client-facing categories. wuPull holds the raw aggregated data (see
+    // aggregateSiteDiaryForRange()); wuSummary holds the editable/AI-drafted text
+    // actually shown/printed. Both empty/null for every other communication type.
+    weekStart: weekStartDefault,
+    weekEnd: weekEndDefault,
+    wuPull: null,
+    wuSummary: { workPerformed: '', subcontractors: '', deliveries: '', delays: '', incidents: '' },
+    wuDistribution: '',
+    // CR (Contractors Report) only — see the migration-block comment near
+    // 'crSummary' backfill above for the full explanation of the two-pull
+    // design. Blank/null for every other communication type.
+    periodStart: periodStartDefault,
+    periodEnd: periodEndDefault,
+    crPull: null,
+    crAdminPull: null,
+    crSummary: { healthSafety: '', construction: '', upcomingWorks: '', design: '', consentStatus: '', adminFinancial: '', general: '' },
+    crDistribution: ''
   };
 }
 // Directory contact classification — shown as a dropdown on the Directory tab and
@@ -7784,7 +7991,9 @@ const COMM_TYPES = [
   { key: 'RFI', label: 'RFI — Request for Information', detailLabel: 'Question / Information Requested', responseLabel: 'Response / Information Provided' },
   { key: 'SI', label: 'SI — Site Instruction', detailLabel: 'Instruction', responseLabel: 'Acknowledgement / Comments' },
   { key: 'NOD', label: 'NOD — Notice of Delay', detailLabel: 'Description of Delay & Cause', responseLabel: 'Acknowledgement / Determination' },
-  { key: 'EOT', label: 'EOT — Extension of Time', detailLabel: 'Grounds for Extension of Time', responseLabel: 'Determination' }
+  { key: 'EOT', label: 'EOT — Extension of Time', detailLabel: 'Grounds for Extension of Time', responseLabel: 'Determination' },
+  { key: 'WU', label: 'WU — Weekly Update', detailLabel: '', responseLabel: '' },
+  { key: 'CR', label: 'CR — Contractors Report', detailLabel: '', responseLabel: '' }
 ];
 function commTypeMeta(type){
   return COMM_TYPES.find(t => t.key === type) || COMM_TYPES[0];
@@ -8740,36 +8949,66 @@ function isTradePriced(trade){
 }
 
 /* ============ INTERNAL TRADE PRICING CALCS ============
-   Supply-and-fix cost buildup for trades priced internally instead of via a subcontractor
-   comparison. Each line has a Supply rate that Waste/Delivery/Fixings percentages compound
-   onto in turn (each a % of the already-uplifted rate, not all three off the base rate),
-   extended by Qty for Total Supply; a Lab Constant (hours per unit of Qty) extended by Qty
-   and the worksheet's single Labour Rate for Total Lab; the two summed for Total Value. */
-function calcInternalSupplyRate(it){
-  return num(it.supply) * (1 + num(it.wastePct) / 100) * (1 + num(it.deliveryPct) / 100) * (1 + num(it.fixingsPct) / 100);
+   Rev16: follows the user's "Manual Takeoff Template" QS worksheet layout. Qty
+   Method is set once for the whole worksheet (see the toggle next to Default
+   Labour Rate) rather than chosen per line — either:
+     - 'manual'  — every line's Qty comes from its own nested set of dimension
+                   sub-rows (Dim1 × Dim2 × Dim3 × Multiplier, uplifted by a
+                   per-row Waste/Mass Factor %), summed then rounded up — the
+                   template's own buildup, for anyone still taking off by hand.
+     - 'takeoff' — every line's Qty is pulled from a saved Takeoff-tool
+                   measurement (unchanged mechanism from before).
+   Each item still carries its own qtyMode field, kept in sync with the
+   worksheet's method by renderInternalPricing() — this is what the calc
+   functions below actually read, so they don't need the worksheet in scope.
+   Costing then follows the template exactly: Labour is a Factor (hours per
+   unit) × Qty × a per-line Labour Rate; Materials / Plant & Sundry /
+   Subcontractors are each a straight Rate × Qty. Total Rate is the blended
+   $/unit across all four; Total is Qty × Total Rate (equivalently the sum of
+   the four amount columns). */
+function freshInternalManualRow(){
+  return { id: uid(), label: '', dim1: 0, dim2: 0, dim3: 0, multiplier: 1, wastePct: 0 };
 }
-/* Factor is a simple multiplier sitting between the Takeoff/Qty measurement and the
-   costing math — e.g. a lineal-metre Qty pulled from a wall takeoff × a Factor of 6
-   (2 sides × 3m height) gives the total m² of wall linings actually priced. Defaults
-   to 1 so a blank/omitted Factor never changes existing costing. Height and Width are
-   optional dimension inputs (e.g. a wall's height/length in metres) that multiply in
-   the same way — also defaulting to 1 when blank/zero so lines that don't need them
-   cost exactly as before. The product of all four is "Ext. Qty", the quantity that
-   actually feeds Total Supply / Total Lab below. */
-function calcInternalEffectiveQty(it){
-  const f = num(it.factor);
-  const h = num(it.height);
-  const w = num(it.width);
-  return num(it.qty) * (f === 0 ? 1 : f) * (h === 0 ? 1 : h) * (w === 0 ? 1 : w);
+/* New line default: qtyMode is overwritten to match the worksheet's Qty Method
+   the moment it's rendered (see renderInternalPricing()), so its starting value
+   here doesn't matter. defaultLabourRate is the worksheet's shared "Labour
+   Rate" field — a fill-down convenience only; each line's rate is its own and
+   can be edited independently afterwards, same as every other rate column. */
+function freshInternalPricingItem(defaultLabourRate, isHeading){
+  return {
+    id: uid(), isHeading: !!isHeading, description: '', uom: '',
+    qtyMode: 'manual', qty: 0, manualRows: [], takeoffSource: null,
+    labourFactor: 0, labourRate: num(defaultLabourRate),
+    materialsRate: 0, plantRate: 0, subcontractorsRate: 0
+  };
 }
-function calcInternalTotalSupply(it){
-  return calcInternalEffectiveQty(it) * calcInternalSupplyRate(it);
+function calcInternalManualRowSubtotal(row){
+  const d1 = num(row.dim1), d2 = num(row.dim2), d3 = num(row.dim3);
+  const mult = row.multiplier === undefined || row.multiplier === null || row.multiplier === '' ? 1 : num(row.multiplier);
+  return d1 * d2 * d3 * mult * (1 + num(row.wastePct) / 100);
 }
-function calcInternalTotalLab(it, labourRate){
-  return calcInternalEffectiveQty(it) * num(it.labConstant) * num(labourRate);
+function calcInternalManualSum(it){
+  if (!Array.isArray(it.manualRows)) return 0;
+  return it.manualRows.reduce((s, r) => s + calcInternalManualRowSubtotal(r), 0);
 }
-function calcInternalLine(it, labourRate){
-  return calcInternalTotalSupply(it) + calcInternalTotalLab(it, labourRate);
+/* The Qty actually used for costing — matches the template's "QUANTITY" column
+   (ROUNDUP of the manual dimension buildup) for manual lines, or the pulled
+   Takeoff value for takeoff-linked lines. */
+function calcInternalQty(it){
+  if (it.qtyMode === 'manual') return Math.ceil(roundQ(calcInternalManualSum(it)) - 1e-9);
+  return num(it.qty);
+}
+function calcInternalTotalHours(it){ return calcInternalQty(it) * num(it.labourFactor); }
+function calcInternalLabourAmount(it){ return calcInternalTotalHours(it) * num(it.labourRate); }
+function calcInternalMaterialsAmount(it){ return calcInternalQty(it) * num(it.materialsRate); }
+function calcInternalPlantAmount(it){ return calcInternalQty(it) * num(it.plantRate); }
+function calcInternalSubsAmount(it){ return calcInternalQty(it) * num(it.subcontractorsRate); }
+function calcInternalLine(it){
+  return calcInternalLabourAmount(it) + calcInternalMaterialsAmount(it) + calcInternalPlantAmount(it) + calcInternalSubsAmount(it);
+}
+function calcInternalTotalRate(it){
+  const q = calcInternalQty(it);
+  return q > 0 ? calcInternalLine(it) / q : 0;
 }
 /* Factor column quick-calc: accepts a plain number or a short arithmetic expression
    (e.g. "2x3", "2*3", "2x3+1") and evaluates it. "x"/"X"/"×" are treated as
@@ -8793,8 +9032,7 @@ function trimFactor(n){
 }
 function internalPricingTotal(trade){
   if (!trade.internalPricing || !Array.isArray(trade.internalPricing.items)) return 0;
-  const labourRate = num(trade.internalPricing.labourRate);
-  return trade.internalPricing.items.reduce((s, it) => s + calcInternalLine(it, labourRate), 0);
+  return trade.internalPricing.items.reduce((s, it) => s + (it.isHeading ? 0 : calcInternalLine(it)), 0);
 }
 
 /* ============ PRELIMINARIES & GENERAL CALCS ============ */
@@ -9302,32 +9540,80 @@ async function loadState(){
         if (Array.isArray(t.tagLabels)){
           t.tagLabels = t.tagLabels.map((l, li) => (l === 'Tag ' + (li + 1) ? '' : l));
         }
-        // migrate: Concrete & Formwork and Carpentry are priced internally on their own
-        // quantities/rates worksheet rather than a subcontractor comparison — flag existing
-        // saved trades the same way freshTrades() already flags new ones.
-        if (t.name === 'Concrete & Formwork' || t.name === 'Carpentry') t.isInternal = true;
+        // migrate: Concrete & Formwork and Carpentry defaulted to priced-internally
+        // when this worksheet was first built — now that any trade can be toggled
+        // into internal pricing (see the trade card's "Price Internally" checkbox),
+        // this only sets the *default* the first time a trade is seen; an explicit
+        // on/off choice the user has since made is never overridden on reload.
+        if (t.isInternal === undefined) t.isInternal = (t.name === 'Concrete & Formwork' || t.name === 'Carpentry');
         if (t.isInternal && (!t.internalPricing || !Array.isArray(t.internalPricing.items))) t.internalPricing = { items: [], labourRate: 0 };
         if (t.isInternal){
           if (t.internalPricing.labourRate === undefined || t.internalPricing.labourRate === null) t.internalPricing.labourRate = 0;
           t.internalPricing.items.forEach(it => {
             if (!it.id) it.id = uid();
-            // migrate: this worksheet used to be a single Qty × Rate line before the
-            // Supply/Waste/Delivery/Fixings/Lab Constant buildup — carry any existing Rate
-            // across to Supply so previously-entered pricing isn't lost.
-            if (it.supply === undefined && it.rate !== undefined) it.supply = it.rate;
-            // Phase 5c: a line may pull its Qty from a saved drawing takeoff.
-            // takeoffSource = { takeoffId, pulledQty, label, pulledAt } or undefined.
+            // migrate (Rev15): the worksheet's costing model changed from a single
+            // Qty × Factor/Height/Width buildup with Supply + Waste/Delivery/Fixings %
+            // markups and a shared Lab Constant, to per-item Manual Takeoff / Pull
+            // from Takeoff / Direct Qty modes plus Labour/Materials/Plant-Sundry/
+            // Subcontractors rate columns — matching the Manual Takeoff Template.
+            // Runs once per item; a line created after Rev15 already has qtyMode set
+            // and skips straight past this block.
+            if (it.qtyMode === undefined){
+              const oldFactor = (it.factor === undefined || it.factor === null || it.factor === '') ? 1 : num(it.factor);
+              const oldHeight = (it.height === undefined || it.height === null || it.height === '') ? 1 : num(it.height);
+              const oldWidth = (it.width === undefined || it.width === null || it.width === '') ? 1 : num(it.width);
+              const oldQty = num(it.qty);
+              const oldSupply = it.supply === undefined ? num(it.rate) : num(it.supply);
+              // Old 3-stage compounding markup (Waste, then Delivery, then Fixings, each
+              // % of the already-uplifted rate) collapses into one effective Materials
+              // Rate — the new model has no equivalent multi-stage markup on a line.
+              const oldMaterialsRate = oldSupply * (1 + num(it.wastePct) / 100) * (1 + num(it.deliveryPct) / 100) * (1 + num(it.fixingsPct) / 100);
+
+              if (it.takeoffSource){
+                // Was pulled from Takeoff — keep the link. Any old Factor/Height/Width
+                // multiplier is folded permanently into the migrated Qty, since the
+                // rebuilt Pull mechanism sets Qty straight from the source with no
+                // separate multiplier on future re-pulls.
+                it.qtyMode = 'takeoff';
+                it.qty = oldQty * oldFactor * oldHeight * oldWidth;
+              } else {
+                // Reconstruct the old Qty × Factor × Height × Width buildup as a single
+                // Manual Takeoff dimension row (Dim1 × Dim2 × Dim3 × Multiplier, 0%
+                // waste) so the migrated line's underlying quantity works out
+                // identically — before the template's ROUNDUP is applied. A previously
+                // non-whole-number Ext. Qty may now round up to the next whole unit, so
+                // $ totals on migrated lines can shift slightly; flagged here rather
+                // than silently absorbed.
+                it.qtyMode = 'manual';
+                it.manualRows = [{ id: uid(), label: 'Migrated from previous line', dim1: oldQty, dim2: oldHeight, dim3: oldWidth, multiplier: oldFactor, wastePct: 0 }];
+              }
+
+              it.materialsRate = oldMaterialsRate;
+              it.plantRate = 0;
+              it.subcontractorsRate = 0;
+              // Old Lab Constant (hours/unit) → Labour Factor; the old worksheet-wide
+              // Labour Rate is carried across per-item, since each line now has its own.
+              it.labourFactor = num(it.labConstant);
+              it.labourRate = num(t.internalPricing.labourRate);
+
+              delete it.factor; delete it.height; delete it.width;
+              delete it.supply; delete it.wastePct; delete it.deliveryPct; delete it.fixingsPct;
+              delete it.labConstant; delete it.rate;
+            }
+            if (!Array.isArray(it.manualRows)) it.manualRows = [];
             if (it.takeoffSource === undefined) it.takeoffSource = null;
-            // Factor: a simple multiplier applied on top of Qty (e.g. a lineal-metre
-            // takeoff × 2 sides × 3m height = total wall lining area). Defaults to 1
-            // so lines saved before this existed keep costing exactly as before.
-            if (it.factor === undefined || it.factor === null || it.factor === '') it.factor = 1;
-            // Height / Width: optional dimension inputs added alongside Factor.
-            // Default to 1 (no effect) so lines saved before this existed keep
-            // costing exactly as before.
-            if (it.height === undefined || it.height === null || it.height === '') it.height = 1;
-            if (it.width === undefined || it.width === null || it.width === '') it.width = 1;
           });
+          // migrate (Rev16): Qty Method is now set once for the whole worksheet
+          // (see the toggle next to Default Labour Rate) rather than chosen per
+          // line. Pick whichever mode the majority of this worksheet's migrated
+          // lines ended up in as the starting worksheet-wide method — every
+          // line's own manualRows/takeoffSource data is kept either way, so
+          // nothing is lost if the method is then switched.
+          if (t.internalPricing.qtyMethod !== 'manual' && t.internalPricing.qtyMethod !== 'takeoff'){
+            const priced = t.internalPricing.items.filter(it => !it.isHeading);
+            const takeoffCount = priced.filter(it => it.qtyMode === 'takeoff').length;
+            t.internalPricing.qtyMethod = (takeoffCount > priced.length / 2) ? 'takeoff' : 'manual';
+          }
         }
       });
       if (!Array.isArray(state.pg)) state.pg = [];
@@ -9836,8 +10122,8 @@ async function loadState(){
       // (date/direction/subject/notes shape, no ref/type) into the new register so
       // no historical entries are lost when the old log UI is retired.
       if (!Array.isArray(state.communications)) state.communications = [];
-      if (!state.commCounters) state.commCounters = { RFI: 0, SI: 0, NOD: 0, EOT: 0 };
-      ['RFI', 'SI', 'NOD', 'EOT'].forEach(k => { if (!state.commCounters[k]) state.commCounters[k] = 0; });
+      if (!state.commCounters) state.commCounters = { RFI: 0, SI: 0, NOD: 0, EOT: 0, WU: 0, CR: 0 };
+      ['RFI', 'SI', 'NOD', 'EOT', 'WU', 'CR'].forEach(k => { if (!state.commCounters[k]) state.commCounters[k] = 0; });
       state.communications.forEach(c => {
         if (!c.id) c.id = uid();
         if (!COMM_TYPES.some(t => t.key === c.type)) c.type = 'RFI';
@@ -9862,6 +10148,28 @@ async function loadState(){
         c.attachments.forEach(a => { if (!a.id) a.id = uid(); });
         if (c.sourceCommId === undefined) c.sourceCommId = '';
         if (!Array.isArray(c.linkedCommIds)) c.linkedCommIds = [];
+        if (c.weekStart === undefined) c.weekStart = '';
+        if (c.weekEnd === undefined) c.weekEnd = '';
+        if (c.wuPull === undefined) c.wuPull = null;
+        if (c.wuDistribution === undefined) c.wuDistribution = '';
+        if (!c.wuSummary) c.wuSummary = { workPerformed: '', subcontractors: '', deliveries: '', delays: '', incidents: '' };
+        ['workPerformed', 'subcontractors', 'deliveries', 'delays', 'incidents'].forEach(k => {
+          if (c.wuSummary[k] === undefined) c.wuSummary[k] = '';
+        });
+        // CR (Contractors Report) — same shape of idea as WU above, but a
+        // broader fortnightly/monthly report with two independent pulls
+        // (Site Diary for Health & Safety/Construction, open RFIs/Claim/
+        // Variations for Admin & Financial) feeding seven client-facing
+        // headings instead of WU's five week-only ones.
+        if (c.periodStart === undefined) c.periodStart = '';
+        if (c.periodEnd === undefined) c.periodEnd = '';
+        if (c.crPull === undefined) c.crPull = null;
+        if (c.crAdminPull === undefined) c.crAdminPull = null;
+        if (c.crDistribution === undefined) c.crDistribution = '';
+        if (!c.crSummary) c.crSummary = { healthSafety: '', construction: '', upcomingWorks: '', design: '', consentStatus: '', adminFinancial: '', general: '' };
+        ['healthSafety', 'construction', 'upcomingWorks', 'design', 'consentStatus', 'adminFinancial', 'general'].forEach(k => {
+          if (c.crSummary[k] === undefined) c.crSummary[k] = '';
+        });
       });
       if (!state.commsMigrated){
         state.subcontractors.forEach(s => {
@@ -10666,8 +10974,43 @@ function buildTradeCard(trade, ti){
     goBtn.textContent = 'Open internal pricing worksheet →';
     goBtn.addEventListener('click', (e) => { e.stopPropagation(); openInternalPricing(ti); });
     body.appendChild(goBtn);
+    // Any trade can be switched into internal pricing (not just the two the app
+    // seeds that way) — see the matching link on the subcontractor-comparison
+    // side below. Switching back and forth never discards data: a trade's
+    // subcontractor rows and its internalPricing worksheet are both kept
+    // whichever mode isn't currently active, so nothing is lost either way.
+    const switchBackBtn = document.createElement('button');
+    switchBackBtn.className = 'linklike';
+    switchBackBtn.type = 'button';
+    switchBackBtn.style.marginLeft = '12px';
+    switchBackBtn.textContent = 'Switch to subcontractor comparison';
+    switchBackBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      trade.isInternal = false;
+      scheduleSave();
+      renderTrades();
+    });
+    body.appendChild(switchBackBtn);
   } else {
     body.className = 'trade-body';
+
+    const internalToggleWrap = document.createElement('div');
+    internalToggleWrap.style.marginBottom = '10px';
+    const switchInternalBtn = document.createElement('button');
+    switchInternalBtn.className = 'linklike';
+    switchInternalBtn.type = 'button';
+    switchInternalBtn.textContent = 'Price this trade internally instead →';
+    switchInternalBtn.title = 'Switch to a first-principles quantities/rates worksheet instead of comparing subcontractor quotes';
+    switchInternalBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      trade.isInternal = true;
+      if (!trade.internalPricing || !Array.isArray(trade.internalPricing.items)) trade.internalPricing = { items: [], labourRate: 0 };
+      scheduleSave();
+      renderTrades();
+    });
+    internalToggleWrap.appendChild(switchInternalBtn);
+    body.appendChild(internalToggleWrap);
+
     const heads = document.createElement('div');
     heads.className = 'row-heads';
     body.appendChild(heads);
@@ -10901,8 +11244,15 @@ function fmtCompact(n){
    pattern as the Variation Breakdown worksheet, minus the Add/Deduct split and the
    report/attachment tooling, since this feeds a trade value rather than a client claim. */
 let internalPricingTradeIndex = null;
+// Where #main-scroll was scrolled to on Trade Pricing right before opening this
+// worksheet — restored on close instead of resetting to the top, so "← Close &
+// return to Trade Pricing" lands back where the user was working, not the top
+// of a potentially long trade list.
+let internalPricingReturnScrollTop = 0;
 
 function openInternalPricing(ti){
+  const mainScrollEl = document.getElementById('main-scroll');
+  internalPricingReturnScrollTop = mainScrollEl ? mainScrollEl.scrollTop : 0;
   switchTab('analysis');
   internalPricingTradeIndex = ti;
   const t = state.trades[ti];
@@ -10913,6 +11263,7 @@ function openInternalPricing(ti){
   document.getElementById('page-title').textContent = 'Internal Pricing';
   document.getElementById('page-subtitle').textContent = t.name || '(untitled)';
   document.body.classList.add('internal-pricing-active');
+  ipManualExpanded = new Set();
   renderInternalPricing();
   scrollWorksheetToTop();
 }
@@ -10920,6 +11271,8 @@ function closeInternalPricing(){
   internalPricingTradeIndex = null;
   document.getElementById('view-internal-pricing').style.display = 'none';
   switchTab('analysis');
+  const mainScrollEl = document.getElementById('main-scroll');
+  if (mainScrollEl) mainScrollEl.scrollTop = internalPricingReturnScrollTop;
 }
 
 /* Row-level "recompute totals" closures for the currently open worksheet, so the Labour
@@ -10927,14 +11280,36 @@ function closeInternalPricing(){
    live on input without rebuilding the table and losing focus on whichever field the
    person is typing in. Repopulated each time renderInternalPricing() runs. */
 let ipRowUpdaters = [];
+// Which items currently have their Manual Takeoff dimension-row editor expanded —
+// keyed by item.id, not persisted to state (purely a this-session UI state), and
+// reset whenever a different trade's worksheet is opened (see openInternalPricing()).
+let ipManualExpanded = new Set();
 
+/* Sets the worksheet-wide Quantity Method (Manual Takeoff vs Pull from Takeoff
+   Tool) and keeps every existing line in sync with it — nothing is deleted when
+   switching either way: a line's manualRows and takeoffSource are both kept
+   dormant in whichever mode isn't currently selected, so switching back restores
+   exactly where it was left. */
+function setInternalPricingQtyMethod(method){
+  if (internalPricingTradeIndex === null) return;
+  const t = state.trades[internalPricingTradeIndex];
+  if (!t || !t.internalPricing) return;
+  if (t.internalPricing.qtyMethod === method) return;
+  t.internalPricing.qtyMethod = method;
+  scheduleSave();
+  renderInternalPricing();
+}
 function renderInternalPricing(){
   if (internalPricingTradeIndex === null) return;
   const t = state.trades[internalPricingTradeIndex];
   if (!t) { closeInternalPricing(); return; }
   if (!t.internalPricing || !Array.isArray(t.internalPricing.items)) t.internalPricing = { items: [], labourRate: 0 };
+  if (t.internalPricing.qtyMethod !== 'manual' && t.internalPricing.qtyMethod !== 'takeoff') t.internalPricing.qtyMethod = 'manual';
   const items = t.internalPricing.items;
   ipRowUpdaters = [];
+
+  document.getElementById('ip-qty-method-manual').classList.toggle('active', t.internalPricing.qtyMethod === 'manual');
+  document.getElementById('ip-qty-method-takeoff').classList.toggle('active', t.internalPricing.qtyMethod === 'takeoff');
 
   const body = document.getElementById('internal-pricing-body');
   body.innerHTML = '';
@@ -10944,12 +11319,7 @@ function renderInternalPricing(){
     const tr = document.createElement('tr');
     tr.dataset.idx = idx;
 
-    // A heading row is a plain section divider (e.g. "Substructure", "Superstructure")
-    // inserted between priced lines — same idea as the heading rows already used on
-    // Preliminaries & General / Budget, but user-insertable and deletable here since
-    // there's no cost-code grouping to derive it from automatically. It carries the
-    // same item shape as a normal line (all cost fields left at 0) so the existing
-    // total calculations already skip it without any special-casing there.
+    // A heading row is a plain section divider — unchanged from before.
     if (it.isHeading){
       tr.className = 'heading-row ip-heading-row';
       const tdHeading = document.createElement('td');
@@ -10971,6 +11341,12 @@ function renderInternalPricing(){
       return;
     }
 
+    if (!Array.isArray(it.manualRows)) it.manualRows = [];
+    // Qty Method is a worksheet-wide rule (see the toggle next to Default Labour
+    // Rate above), not a per-line choice — keep every line's mode in sync with it.
+    it.qtyMode = (t.internalPricing.qtyMethod === 'takeoff') ? 'takeoff' : 'manual';
+    if (it.qtyMode === 'manual' && !it.manualRows.length) it.manualRows.push(freshInternalManualRow());
+
     const tdNo = document.createElement('td');
     tdNo.className = 'readout';
     lineNo++;
@@ -10983,118 +11359,176 @@ function renderInternalPricing(){
     tdDesc.appendChild(descInp);
     tr.appendChild(tdDesc);
 
-    // Qty input (defined before the takeoff cell because the takeoff cell's
-    // handlers reference qtyInp / fmtQtyDisplay). Column order is fixed later
-    // via appendChild: Takeoff, then Qty, then UOM.
-    const tdQty = document.createElement('td');
-    const qtyInp = document.createElement('input');
-    // Text input (not number) so we can show a fixed 2-decimal display when the
-    // field isn't being edited; on focus we show the plain editable number.
-    qtyInp.type = 'text'; qtyInp.inputMode = 'decimal'; qtyInp.className = 'num';
-    const fmtQtyDisplay = () => {
-      const v = it.qty;
-      qtyInp.value = (v === undefined || v === null || v === 0) ? '' : Number(v).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
-    fmtQtyDisplay();
-    qtyInp.addEventListener('focus', () => { qtyInp.value = (it.qty === undefined || it.qty === null || it.qty === 0) ? '' : String(it.qty); });
-    qtyInp.addEventListener('input', e => {
-      it.qty = parseFloat(String(e.target.value).replace(/,/g, '')) || 0;
-      if (it.takeoffSource){ it.takeoffSource = null; renderTakeoffCell(); }
-      updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
-    });
-    qtyInp.addEventListener('blur', fmtQtyDisplay);
-    tdQty.appendChild(qtyInp);
-
     const tdUom = document.createElement('td');
     const uomInp = mkInput('text', it.uom, val => { it.uom = val; });
     tdUom.appendChild(uomInp);
+    tr.appendChild(tdUom);
 
-    // ---- Factor cell — sits between Takeoff and Qty. A simple multiplier applied
-    // on top of Qty for costing (e.g. a lineal-metre Qty pulled from a wall takeoff
-    // x a Factor of 6 [2 sides x 3m height] = the total m² of wall linings actually
-    // priced). Supports quick-calc entry: typing "2x3" or "2*3" evaluates to 6. ----
-    const tdFactor = document.createElement('td');
-    const factorInp = document.createElement('input');
-    factorInp.type = 'text'; factorInp.inputMode = 'decimal'; factorInp.className = 'num ip-factor-input';
-    factorInp.title = 'Multiplier applied to Qty for costing — type a number, or a quick calc like 2x3';
-    const fmtFactorDisplay = () => {
-      const f = it.factor;
-      factorInp.value = (f === undefined || f === null || Number(f) === 1) ? '' : trimFactor(f);
-    };
-    fmtFactorDisplay();
-    factorInp.addEventListener('focus', () => {
-      factorInp.value = (it.factor === undefined || it.factor === null || Number(it.factor) === 1) ? '' : String(it.factor);
-    });
-    factorInp.addEventListener('input', e => {
-      const raw = e.target.value;
-      if (raw.trim() === ''){
-        it.factor = 1;
-        updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
-        return;
-      }
-      const val = evalFactorExpr(raw);
-      if (val !== null && val !== 0){
-        it.factor = val;
-        updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
-      }
-    });
-    factorInp.addEventListener('blur', fmtFactorDisplay);
-    tdFactor.appendChild(factorInp);
+    // ---- Quantity cell — just the value, plus (in Manual mode) an Edit-rows
+    // toggle for the nested dimension-row editor below. ----
+    const tdQty = document.createElement('td');
+    const valueRow = document.createElement('div');
+    valueRow.className = 'ip-qty-value-row';
+    tdQty.appendChild(valueRow);
 
-    // ---- Height / Width cells — optional dimension inputs (e.g. a wall's height and
-    // length in metres) that multiply into the costing quantity alongside Factor, so a
-    // line can be built up from Qty × Factor × Height × Width instead of folding
-    // everything into a single hand-typed Factor expression. Both default to 1 when
-    // blank/zero, same convention as Factor, so existing lines cost unchanged. ----
-    const tdHeight = document.createElement('td');
-    const heightInp = document.createElement('input');
-    heightInp.type = 'number'; heightInp.step = 'any'; heightInp.className = 'num ip-dim-input';
-    heightInp.title = 'Height — multiplies into Ext. Qty alongside Qty, Factor and Width';
-    const fmtHeightDisplay = () => {
-      const v = it.height;
-      heightInp.value = (v === undefined || v === null || Number(v) === 1) ? '' : Number(v).toFixed(2);
-    };
-    fmtHeightDisplay();
-    heightInp.addEventListener('focus', () => {
-      heightInp.value = (it.height === undefined || it.height === null || Number(it.height) === 1) ? '' : String(it.height);
-    });
-    heightInp.addEventListener('input', e => {
-      const raw = e.target.value;
-      it.height = raw.trim() === '' ? 1 : (parseFloat(raw) || 1);
-      updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
-    });
-    heightInp.addEventListener('blur', fmtHeightDisplay);
-    tdHeight.appendChild(heightInp);
+    const qtyReadout = document.createElement('span');
+    qtyReadout.className = 'ip-qty-readout num';
+    function refreshQtyReadout(){
+      if (it.qtyMode !== 'manual') return;
+      qtyReadout.textContent = fmtQ(calcInternalQty(it));
+    }
 
-    const tdWidth = document.createElement('td');
-    const widthInp = document.createElement('input');
-    widthInp.type = 'number'; widthInp.step = 'any'; widthInp.className = 'num ip-dim-input';
-    widthInp.title = 'Width — multiplies into Ext. Qty alongside Qty, Factor and Height';
-    const fmtWidthDisplay = () => {
-      const v = it.width;
-      widthInp.value = (v === undefined || v === null || Number(v) === 1) ? '' : Number(v).toFixed(2);
-    };
-    fmtWidthDisplay();
-    widthInp.addEventListener('focus', () => {
-      widthInp.value = (it.width === undefined || it.width === null || Number(it.width) === 1) ? '' : String(it.width);
-    });
-    widthInp.addEventListener('input', e => {
-      const raw = e.target.value;
-      it.width = raw.trim() === '' ? 1 : (parseFloat(raw) || 1);
-      updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
-    });
-    widthInp.addEventListener('blur', fmtWidthDisplay);
-    tdWidth.appendChild(widthInp);
+    // ---- Manual Takeoff nested editor — its own full-width table row, appended
+    // directly after this item's main row when expanded (see body.appendChild
+    // calls at the bottom of this forEach). Same "bordered card of nested
+    // repeatable rows" pattern as the Health & Safety Sequence of Steps blocks. ----
+    let manualTr = null;
+    function ensureManualRow(){
+      if (manualTr) return manualTr;
+      manualTr = document.createElement('tr');
+      manualTr.className = 'ip-manual-row';
+      const td = document.createElement('td');
+      td.colSpan = 17;
+      const wrap = document.createElement('div');
+      wrap.className = 'ip-manual-editor';
+      td.appendChild(wrap);
+      manualTr.appendChild(td);
+      return manualTr;
+    }
+    // The Sum Total lives in the manual takeoff table's own <tfoot>, in the same
+    // column position as the "Sub-total" header above it — a real table cell in
+    // the same grid as the row subtotals, not a separate line that could drift
+    // out of alignment with them. The rounded-up Qty itself isn't repeated here;
+    // it's already shown one row up, in the item's own Quantity cell.
+    function refreshManualTotalLine(){
+      const cell = manualTr && manualTr.querySelector('.ip-manual-sum-total');
+      if (!cell) return;
+      cell.textContent = fmtQ(calcInternalManualSum(it));
+    }
+    function refreshManualTotals(){
+      refreshManualTotalLine();
+      refreshQtyReadout();
+    }
+    function renderManualEditor(){
+      const row = ensureManualRow();
+      const wrap = row.querySelector('.ip-manual-editor');
+      wrap.innerHTML = '';
+      const table = document.createElement('table');
+      table.className = 'ip-manual-table';
+      const thead = document.createElement('thead');
+      thead.innerHTML = '<tr>' +
+        '<th style="width:42%;">Description / Notes</th>' +
+        '<th class="num" style="width:7%;">Dim 1</th>' +
+        '<th class="num" style="width:7%;">Dim 2</th>' +
+        '<th class="num" style="width:7%;">Dim 3</th>' +
+        '<th class="num" style="width:8%;">Multiplier</th>' +
+        '<th class="num" style="width:12%;">Waste / Mass Factor (%)</th>' +
+        '<th class="num" style="width:12%;">Sub-total</th>' +
+        '<th style="width:5%;"></th>' +
+        '</tr>';
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      it.manualRows.forEach((mrow, ridx) => {
+        const rtr = document.createElement('tr');
 
-    // ---- Ext. Qty — readout only (Qty × Factor × Height × Width). This is the
-    // quantity that actually feeds Total Supply / Total Lab below. ----
-    const tdExtQty = document.createElement('td');
-    tdExtQty.className = 'num readout';
+        const tdLabel = document.createElement('td');
+        const labelInp = mkInput('text', mrow.label, val => { mrow.label = val; scheduleSave(); });
+        labelInp.placeholder = 'e.g. Pad 1';
+        tdLabel.appendChild(labelInp);
+        rtr.appendChild(tdLabel);
 
-    // ---- Takeoff pull cell (Phase 5c) — sits to the LEFT of Qty ----
-    const tdTakeoff = document.createElement('td');
-    function renderTakeoffCell(){
-      tdTakeoff.innerHTML = '';
+        const dimCell = (key, placeholder) => {
+          const td = document.createElement('td'); td.className = 'num';
+          const inp = document.createElement('input');
+          inp.type = 'number'; inp.step = 'any'; inp.className = 'ip-dim-input';
+          inp.placeholder = placeholder || '';
+          inp.value = mrow[key] ? String(mrow[key]) : '';
+          inp.addEventListener('input', e => {
+            mrow[key] = parseFloat(e.target.value) || 0;
+            refreshRowSubtotal(); refreshManualTotals(); updateRowTotals(); scheduleSave();
+          });
+          td.appendChild(inp);
+          return td;
+        };
+        rtr.appendChild(dimCell('dim1', 'Length'));
+        rtr.appendChild(dimCell('dim2', 'Width'));
+        rtr.appendChild(dimCell('dim3', 'Depth'));
+
+        const tdMult = document.createElement('td'); tdMult.className = 'num';
+        const multInp = document.createElement('input');
+        multInp.type = 'number'; multInp.step = 'any'; multInp.className = 'ip-dim-input';
+        multInp.placeholder = '1';
+        multInp.value = (mrow.multiplier === undefined || mrow.multiplier === null || Number(mrow.multiplier) === 1) ? '' : String(mrow.multiplier);
+        multInp.addEventListener('input', e => {
+          const raw = e.target.value;
+          mrow.multiplier = raw.trim() === '' ? 1 : (parseFloat(raw) || 1);
+          refreshRowSubtotal(); refreshManualTotals(); updateRowTotals(); scheduleSave();
+        });
+        tdMult.appendChild(multInp);
+        rtr.appendChild(tdMult);
+
+        const tdWaste = document.createElement('td'); tdWaste.className = 'num';
+        const wasteInp = document.createElement('input');
+        wasteInp.type = 'number'; wasteInp.step = 'any'; wasteInp.className = 'ip-dim-input';
+        wasteInp.value = mrow.wastePct ? String(mrow.wastePct) : '';
+        wasteInp.addEventListener('input', e => {
+          mrow.wastePct = parseFloat(e.target.value) || 0;
+          refreshRowSubtotal(); refreshManualTotals(); updateRowTotals(); scheduleSave();
+        });
+        tdWaste.appendChild(wasteInp);
+        rtr.appendChild(tdWaste);
+
+        const tdSub = document.createElement('td'); tdSub.className = 'num ip-manual-subtotal';
+        function refreshRowSubtotal(){ tdSub.textContent = fmtQ(calcInternalManualRowSubtotal(mrow)); }
+        refreshRowSubtotal();
+        rtr.appendChild(tdSub);
+
+        const tdRDel = document.createElement('td');
+        const rDelBtn = document.createElement('button');
+        rDelBtn.className = 'iconbtn'; rDelBtn.textContent = '✕'; rDelBtn.title = 'Remove row';
+        rDelBtn.addEventListener('click', () => {
+          it.manualRows.splice(ridx, 1);
+          renderManualEditor(); refreshManualTotals(); updateRowTotals(); scheduleSave();
+        });
+        tdRDel.appendChild(rDelBtn);
+        rtr.appendChild(tdRDel);
+
+        tbody.appendChild(rtr);
+      });
+      table.appendChild(tbody);
+
+      // Sum Total row — same 8-column grid as the header/body above, so its value
+      // sits directly under "Sub-total" rather than in a separately-aligned line.
+      const tfoot = document.createElement('tfoot');
+      const ftr = document.createElement('tr');
+      const tdFootLabel = document.createElement('td');
+      tdFootLabel.colSpan = 6;
+      tdFootLabel.style.textAlign = 'right';
+      tdFootLabel.style.fontWeight = '600';
+      tdFootLabel.textContent = 'Sum Total';
+      ftr.appendChild(tdFootLabel);
+      const tdFootValue = document.createElement('td');
+      tdFootValue.className = 'num ip-manual-sum-total';
+      ftr.appendChild(tdFootValue);
+      ftr.appendChild(document.createElement('td'));
+      tfoot.appendChild(ftr);
+      table.appendChild(tfoot);
+
+      wrap.appendChild(table);
+      refreshManualTotalLine();
+
+      const addRowBtn = document.createElement('button');
+      addRowBtn.type = 'button'; addRowBtn.className = 'addbtn'; addRowBtn.style.marginTop = '8px';
+      addRowBtn.textContent = '+ Add row';
+      addRowBtn.addEventListener('click', () => {
+        it.manualRows.push(freshInternalManualRow());
+        renderManualEditor(); refreshManualTotals(); updateRowTotals(); scheduleSave();
+      });
+      wrap.appendChild(addRowBtn);
+    }
+
+    function renderTakeoffControl(){
+      const wrap = document.createElement('div');
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'takeoff-pull-btn';
@@ -11102,20 +11536,16 @@ function renderInternalPricing(){
         const src = state.drawings.takeoffs.find(x => x.id === it.takeoffSource.takeoffId);
         const stale = src && src.qty !== null && src.qty !== undefined && roundQ(src.qty) !== roundQ(it.takeoffSource.pulledQty);
         const gone = !src;
-        btn.textContent = 'Change';
+        btn.textContent = 'Change (' + fmtQ(it.qty) + ')';
         btn.classList.add('linked');
         btn.title = 'Pulled from "' + (it.takeoffSource.label || 'takeoff') + '". Click to view/change.';
-        btn.addEventListener('click', () => openTakeoffPicker(it, renderTakeoffCell, qtyInp, updateRowTotals));
-        tdTakeoff.appendChild(btn);
-
-        // No label note on the row (per request) — the source is shown highlighted
-        // inside the picker when reopened. Keep only the re-pull cue when the
-        // drawing measurement has changed since it was pulled.
+        btn.addEventListener('click', () => openTakeoffPicker(it, () => renderInternalPricing(), null, updateRowTotals));
+        wrap.appendChild(btn);
         if (gone){
           const warn = document.createElement('div');
           warn.className = 'takeoff-note stale';
           warn.textContent = 'source deleted';
-          tdTakeoff.appendChild(warn);
+          wrap.appendChild(warn);
         } else if (stale){
           const upd = document.createElement('button');
           upd.type = 'button';
@@ -11125,98 +11555,83 @@ function renderInternalPricing(){
           upd.addEventListener('click', () => {
             it.qty = src.qty || 0;
             it.takeoffSource = { takeoffId: src.id, pulledQty: src.qty, label: src.label, pulledAt: new Date().toISOString() };
-            fmtQtyDisplay();
-            renderTakeoffCell(); updateRowTotals(); refreshInternalPricingTotals(); scheduleSave();
+            renderInternalPricing(); refreshInternalPricingTotals(); scheduleSave();
           });
-          tdTakeoff.appendChild(upd);
+          wrap.appendChild(upd);
         }
       } else {
-        btn.textContent = 'Pull';
+        btn.textContent = 'Pull from Takeoff';
         btn.title = 'Fill this Qty from a saved drawing takeoff';
-        btn.addEventListener('click', () => openTakeoffPicker(it, renderTakeoffCell, qtyInp, updateRowTotals));
-        tdTakeoff.appendChild(btn);
+        btn.addEventListener('click', () => openTakeoffPicker(it, () => renderInternalPricing(), null, updateRowTotals));
+        wrap.appendChild(btn);
       }
+      valueRow.appendChild(wrap);
     }
-    renderTakeoffCell();
 
-    // Column order: Takeoff, Qty, Factor, Height, Width, Ext. Qty, UOM
-    tr.appendChild(tdTakeoff);
+    // Populate the value row for whichever mode the worksheet is currently set to.
+    if (it.qtyMode === 'manual'){
+      refreshQtyReadout();
+      valueRow.appendChild(qtyReadout);
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'linklike';
+      toggleBtn.textContent = ipManualExpanded.has(it.id) ? 'Hide ▾' : 'Edit ▸';
+      toggleBtn.addEventListener('click', () => {
+        if (ipManualExpanded.has(it.id)) ipManualExpanded.delete(it.id); else ipManualExpanded.add(it.id);
+        renderInternalPricing();
+      });
+      valueRow.appendChild(toggleBtn);
+    } else {
+      renderTakeoffControl();
+    }
     tr.appendChild(tdQty);
-    tr.appendChild(tdFactor);
-    tr.appendChild(tdHeight);
-    tr.appendChild(tdWidth);
-    tr.appendChild(tdExtQty);
-    tr.appendChild(tdUom);
 
-    const tdSupply = document.createElement('td');
-    tdSupply.className = 'num';
-    const supplyInp = mkMoneyInput(it.supply, val => { it.supply = val; updateRowTotals(); refreshInternalPricingTotals(); }, 2);
-    tdSupply.appendChild(supplyInp);
-    tr.appendChild(tdSupply);
+    // ---- Costing columns — Labour (Factor × Qty × Rate), Materials / Plant-Sundry /
+    // Subcontractors (each a straight Rate × Qty), Total Rate/Amount blended across
+    // all four. Matches the Manual Takeoff Template's column set exactly. ----
+    const tdLabFactor = document.createElement('td'); tdLabFactor.className = 'num';
+    const labFactorInp = document.createElement('input');
+    labFactorInp.type = 'number'; labFactorInp.step = 'any'; labFactorInp.className = 'num ip-dim-input';
+    labFactorInp.title = 'Labour constant applied per unit of Qty';
+    labFactorInp.value = it.labourFactor ? String(it.labourFactor) : '';
+    labFactorInp.addEventListener('input', e => { it.labourFactor = parseFloat(e.target.value) || 0; updateRowTotals(); refreshInternalPricingTotals(); scheduleSave(); });
+    tdLabFactor.appendChild(labFactorInp);
+    tr.appendChild(tdLabFactor);
 
-    const tdWaste = document.createElement('td');
-    tdWaste.className = 'num';
-    const wasteInp = document.createElement('input');
-    wasteInp.type = 'number'; wasteInp.step = 'any'; wasteInp.className = 'num ip-pct-input';
-    wasteInp.value = it.wastePct === undefined || it.wastePct === null || it.wastePct === 0 ? (it.wastePct || '') : it.wastePct;
-    wasteInp.addEventListener('input', e => { it.wastePct = parseFloat(e.target.value) || 0; updateRowTotals(); refreshInternalPricingTotals(); scheduleSave(); });
-    tdWaste.appendChild(wasteInp);
-    tr.appendChild(tdWaste);
+    const tdTotalHours = document.createElement('td'); tdTotalHours.className = 'num readout';
+    tr.appendChild(tdTotalHours);
 
-    const tdDelivery = document.createElement('td');
-    tdDelivery.className = 'num';
-    const deliveryInp = document.createElement('input');
-    deliveryInp.type = 'number'; deliveryInp.step = 'any'; deliveryInp.className = 'num ip-pct-input';
-    deliveryInp.value = it.deliveryPct === undefined || it.deliveryPct === null || it.deliveryPct === 0 ? (it.deliveryPct || '') : it.deliveryPct;
-    deliveryInp.addEventListener('input', e => { it.deliveryPct = parseFloat(e.target.value) || 0; updateRowTotals(); refreshInternalPricingTotals(); scheduleSave(); });
-    tdDelivery.appendChild(deliveryInp);
-    tr.appendChild(tdDelivery);
+    function rateCell(key){
+      const td = document.createElement('td'); td.className = 'num';
+      const inp = mkMoneyInput(it[key], val => { it[key] = val; updateRowTotals(); refreshInternalPricingTotals(); }, 2);
+      inp.classList.add('ip-rate-input');
+      td.appendChild(inp);
+      return td;
+    }
+    tr.appendChild(rateCell('labourRate'));
+    const tdLabourAmount = document.createElement('td'); tdLabourAmount.className = 'num readout'; tr.appendChild(tdLabourAmount);
 
-    const tdFixings = document.createElement('td');
-    tdFixings.className = 'num';
-    const fixingsInp = document.createElement('input');
-    fixingsInp.type = 'number'; fixingsInp.step = 'any'; fixingsInp.className = 'num ip-pct-input';
-    fixingsInp.value = it.fixingsPct === undefined || it.fixingsPct === null || it.fixingsPct === 0 ? (it.fixingsPct || '') : it.fixingsPct;
-    fixingsInp.addEventListener('input', e => { it.fixingsPct = parseFloat(e.target.value) || 0; updateRowTotals(); refreshInternalPricingTotals(); scheduleSave(); });
-    tdFixings.appendChild(fixingsInp);
-    tr.appendChild(tdFixings);
+    tr.appendChild(rateCell('materialsRate'));
+    const tdMaterialsAmount = document.createElement('td'); tdMaterialsAmount.className = 'num readout'; tr.appendChild(tdMaterialsAmount);
 
-    const tdTotalSupply = document.createElement('td');
-    tdTotalSupply.className = 'num readout';
-    tr.appendChild(tdTotalSupply);
+    tr.appendChild(rateCell('plantRate'));
+    const tdPlantAmount = document.createElement('td'); tdPlantAmount.className = 'num readout'; tr.appendChild(tdPlantAmount);
 
-    const tdLabConstant = document.createElement('td');
-    tdLabConstant.style.textAlign = 'center';
-    const labConstantInp = document.createElement('input');
-    labConstantInp.type = 'number'; labConstantInp.step = 'any'; labConstantInp.className = 'ip-labcon-input';
-    labConstantInp.style.textAlign = 'center';
-    const fmtLabConstantDisplay = () => {
-      const v = it.labConstant;
-      labConstantInp.value = (v === undefined || v === null || v === 0) ? '' : Number(v).toFixed(2);
-    };
-    fmtLabConstantDisplay();
-    labConstantInp.addEventListener('focus', () => {
-      labConstantInp.value = (it.labConstant === undefined || it.labConstant === null || it.labConstant === 0) ? '' : String(it.labConstant);
-    });
-    labConstantInp.addEventListener('input', e => { it.labConstant = parseFloat(e.target.value) || 0; updateRowTotals(); refreshInternalPricingTotals(); scheduleSave(); });
-    labConstantInp.addEventListener('blur', fmtLabConstantDisplay);
-    tdLabConstant.appendChild(labConstantInp);
-    tr.appendChild(tdLabConstant);
+    tr.appendChild(rateCell('subcontractorsRate'));
+    const tdSubsAmount = document.createElement('td'); tdSubsAmount.className = 'num readout'; tr.appendChild(tdSubsAmount);
 
-    const tdTotalLab = document.createElement('td');
-    tdTotalLab.className = 'num readout';
-    tr.appendChild(tdTotalLab);
-
-    const tdTotalValue = document.createElement('td');
-    tdTotalValue.className = 'num readout';
-    tr.appendChild(tdTotalValue);
+    const tdTotalRate = document.createElement('td'); tdTotalRate.className = 'num readout'; tr.appendChild(tdTotalRate);
+    const tdTotalAmount = document.createElement('td'); tdTotalAmount.className = 'num readout'; tr.appendChild(tdTotalAmount);
 
     function updateRowTotals(){
-      const labourRate = num(t.internalPricing.labourRate);
-      tdExtQty.textContent = Number(calcInternalEffectiveQty(it)).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      tdTotalSupply.textContent = fmt2(calcInternalTotalSupply(it));
-      tdTotalLab.textContent = fmt2(calcInternalTotalLab(it, labourRate));
-      tdTotalValue.textContent = fmt2(calcInternalLine(it, labourRate));
+      tdTotalHours.textContent = fmtQ(calcInternalTotalHours(it));
+      tdLabourAmount.textContent = fmt2(calcInternalLabourAmount(it));
+      tdMaterialsAmount.textContent = fmt2(calcInternalMaterialsAmount(it));
+      tdPlantAmount.textContent = fmt2(calcInternalPlantAmount(it));
+      tdSubsAmount.textContent = fmt2(calcInternalSubsAmount(it));
+      tdTotalRate.textContent = fmt2(calcInternalTotalRate(it));
+      tdTotalAmount.textContent = fmt2(calcInternalLine(it));
+      if (it.qtyMode === 'manual') refreshQtyReadout();
     }
     updateRowTotals();
     ipRowUpdaters.push(updateRowTotals);
@@ -11229,6 +11644,11 @@ function renderInternalPricing(){
     tr.appendChild(tdDel);
 
     body.appendChild(tr);
+
+    if (it.qtyMode === 'manual' && ipManualExpanded.has(it.id)){
+      renderManualEditor();
+      body.appendChild(manualTr);
+    }
   });
 
   const labourRateInp = document.getElementById('ip-labour-rate');
@@ -11245,27 +11665,37 @@ function refreshInternalPricingTotals(){
   const total = internalPricingTotal(t);
   document.getElementById('ip-total').textContent = money2(total);
 
-  // Sub Total row for the Total Supply / Total Lab columns, sitting under the
-  // worksheet body — same column positions as the line rows above.
+  // Sub Total row — one column per costing column, sitting under the worksheet
+  // body at the same positions as the line rows above.
   const items = (t.internalPricing && t.internalPricing.items) || [];
-  const labourRate = num(t.internalPricing ? t.internalPricing.labourRate : 0);
-  const subSupply = items.reduce((s, it) => s + calcInternalTotalSupply(it), 0);
-  const subLab = items.reduce((s, it) => s + calcInternalTotalLab(it, labourRate), 0);
+  const priced = items.filter(it => !it.isHeading);
+  const subHours = priced.reduce((s, it) => s + calcInternalTotalHours(it), 0);
+  const subLabour = priced.reduce((s, it) => s + calcInternalLabourAmount(it), 0);
+  const subMaterials = priced.reduce((s, it) => s + calcInternalMaterialsAmount(it), 0);
+  const subPlant = priced.reduce((s, it) => s + calcInternalPlantAmount(it), 0);
+  const subSubs = priced.reduce((s, it) => s + calcInternalSubsAmount(it), 0);
   const foot = document.getElementById('internal-pricing-foot');
   if (foot){
     foot.innerHTML = `
       <tr class="total-row">
-        <td colspan="13" style="text-align:right;">Sub Total</td>
-        <td class="num">${fmt2(subSupply)}</td>
+        <td colspan="5" style="text-align:right;">Sub Total</td>
+        <td class="num">${fmtQ(subHours)}</td>
         <td></td>
-        <td class="num">${fmt2(subLab)}</td>
+        <td class="num">${fmt2(subLabour)}</td>
         <td></td>
+        <td class="num">${fmt2(subMaterials)}</td>
+        <td></td>
+        <td class="num">${fmt2(subPlant)}</td>
+        <td></td>
+        <td class="num">${fmt2(subSubs)}</td>
+        <td></td>
+        <td class="num">${fmt2(total)}</td>
         <td></td>
       </tr>`;
   }
 
   // Keep the trade card in sync underneath, so it's already up to date when the user
-  // closes back to Tender Analysis (that card stays in the DOM, just hidden, while
+  // closes back to Trade Pricing (that card stays in the DOM, just hidden, while
   // this worksheet is open — same pattern the Variation Breakdown uses for its VO row).
   const head = document.querySelector('#trade-' + internalPricingTradeIndex + ' .trade-card-head');
   if (head) updateTradeHeadBadge(t, head);
@@ -11359,19 +11789,24 @@ function renderInternalPricingReport(){
   document.getElementById('ip-report-sheet').innerHTML = buildInternalPricingReportHtml(t, ipReportMode);
   setIpReportPrintOrientation(ipReportMode === 'full');
 }
-/* The Qty shown on a printed schedule is the effective quantity actually being
-   priced — Qty x Factor (e.g. lineal-metre wall length x 2 sides x 3m height =
-   total m² of lining) — since that's what a supplier needs to quote against, not
-   the raw takeoff measurement the Factor was applied to. */
+/* The Qty shown on a printed schedule is the same final Qty the worksheet costs
+   against — the ROUNDUP of a Manual Takeoff buildup, or a pulled Takeoff value,
+   depending on the worksheet's Quantity Method — since that's what a supplier
+   needs to quote against. */
 function ipReportQtyDisplay(it){
-  return Number(calcInternalEffectiveQty(it)).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtQ(calcInternalQty(it));
 }
 function buildInternalPricingReportHtml(trade, mode){
   const companyName = state.project.companyName || '[Company Name]';
   const projectName = (state.project.name || '[Project Name]') + jobNumberTag();
   const dateStr = fmtDateStr(new Date().toISOString().slice(0, 10));
   const items = (trade.internalPricing && trade.internalPricing.items) || [];
-  const labourRate = num(trade.internalPricing ? trade.internalPricing.labourRate : 0);
+  // Defensive re-sync: every line's qtyMode should already match the worksheet's
+  // Quantity Method (renderInternalPricing() keeps them in step), but the report
+  // can in principle be built without that render having run first — re-assert it
+  // here so the printed Qty is never read from a stale per-line mode.
+  const qtyMethod = (trade.internalPricing && trade.internalPricing.qtyMethod === 'takeoff') ? 'takeoff' : 'manual';
+  items.forEach(it => { if (!it.isHeading) it.qtyMode = qtyMethod; });
 
   if (mode === 'blank'){
     let n = 0;
@@ -11392,7 +11827,7 @@ function buildInternalPricingReportHtml(trade, mode){
       <div class="letter-date">${dateStr}</div>
       <p class="letter-heading">${escapeHtml(projectName)} &mdash; ${escapeHtml(trade.name || 'Trade')}</p>
       <p>Schedule of quantities for pricing. Please return this schedule with your rates against each item.</p>
-      <table class="report-table">
+      <table class="report-table ip-report-blank" style="font-size:10.5px;">
         <thead>
           <tr>
             <th class="ctr" style="width:40px;">Item</th>
@@ -11413,64 +11848,81 @@ function buildInternalPricingReportHtml(trade, mode){
   let fn = 0;
   const rows = items.map((it) => {
     if (it.isHeading){
-      return `<tr><td colspan="13" style="font-weight:700;padding-top:14px;">${escapeHtml(it.description || '')}</td></tr>`;
+      return `<tr><td colspan="16" style="font-weight:700;padding-top:14px;">${escapeHtml(it.description || '')}</td></tr>`;
     }
     fn++;
     return `
     <tr>
       <td class="ctr">${fn}</td>
       <td>${escapeHtml(it.description || '')}</td>
-      <td class="ctr">${(num(it.factor) && num(it.factor) !== 1) ? trimFactor(it.factor) : ''}</td>
-      <td class="num">${ipReportQtyDisplay(it)}</td>
       <td>${escapeHtml(it.uom || '')}</td>
-      <td class="num">${money2(num(it.supply))}</td>
-      <td class="ctr">${it.wastePct ? num(it.wastePct) : ''}</td>
-      <td class="ctr">${it.deliveryPct ? num(it.deliveryPct) : ''}</td>
-      <td class="ctr">${it.fixingsPct ? num(it.fixingsPct) : ''}</td>
-      <td class="num">${fmt2(calcInternalTotalSupply(it))}</td>
-      <td class="ctr">${it.labConstant ? num(it.labConstant).toFixed(2) : ''}</td>
-      <td class="num">${fmt2(calcInternalTotalLab(it, labourRate))}</td>
-      <td class="num" style="font-weight:600;">${fmt2(calcInternalLine(it, labourRate))}</td>
+      <td class="num">${ipReportQtyDisplay(it)}</td>
+      <td class="ctr">${it.labourFactor ? num(it.labourFactor).toFixed(2) : ''}</td>
+      <td class="num">${fmtQ(calcInternalTotalHours(it))}</td>
+      <td class="num">${money2(num(it.labourRate))}</td>
+      <td class="num">${fmt2(calcInternalLabourAmount(it))}</td>
+      <td class="num">${money2(num(it.materialsRate))}</td>
+      <td class="num">${fmt2(calcInternalMaterialsAmount(it))}</td>
+      <td class="num">${money2(num(it.plantRate))}</td>
+      <td class="num">${fmt2(calcInternalPlantAmount(it))}</td>
+      <td class="num">${money2(num(it.subcontractorsRate))}</td>
+      <td class="num">${fmt2(calcInternalSubsAmount(it))}</td>
+      <td class="num">${fmt2(calcInternalTotalRate(it))}</td>
+      <td class="num" style="font-weight:600;">${fmt2(calcInternalLine(it))}</td>
     </tr>`;
   }).join('');
-  const subSupply = items.reduce((s, it) => s + calcInternalTotalSupply(it), 0);
-  const subLab = items.reduce((s, it) => s + calcInternalTotalLab(it, labourRate), 0);
-  const grandTotal = subSupply + subLab;
+  const priced = items.filter(it => !it.isHeading);
+  const subHours = priced.reduce((s, it) => s + calcInternalTotalHours(it), 0);
+  const subLabour = priced.reduce((s, it) => s + calcInternalLabourAmount(it), 0);
+  const subMaterials = priced.reduce((s, it) => s + calcInternalMaterialsAmount(it), 0);
+  const subPlant = priced.reduce((s, it) => s + calcInternalPlantAmount(it), 0);
+  const subSubs = priced.reduce((s, it) => s + calcInternalSubsAmount(it), 0);
+  const grandTotal = subLabour + subMaterials + subPlant + subSubs;
   return `
     <div class="letter-date">${dateStr}</div>
     <p class="letter-heading">${escapeHtml(projectName)} &mdash; ${escapeHtml(trade.name || 'Trade')} &mdash; Full Schedule Breakdown</p>
-    <p><strong>Contractor:</strong> ${escapeHtml(companyName)}<br><strong>Labour Rate:</strong> ${money2(labourRate)} / hr</p>
-    <table class="report-table" style="font-size:11px;">
+    <p><strong>Contractor:</strong> ${escapeHtml(companyName)}</p>
+    <table class="report-table ip-report-full" style="font-size:9.5px;">
       <thead>
         <tr>
           <th class="ctr">Item</th>
           <th>Description</th>
-          <th class="ctr">Factor</th>
-          <th class="num">Qty</th>
           <th>UOM</th>
-          <th class="num">Supply ($)</th>
-          <th class="ctr">Waste (%)</th>
-          <th class="ctr">Delivery (%)</th>
-          <th class="ctr">Fixings (%)</th>
-          <th class="num">Total Supply</th>
+          <th class="num">Qty</th>
           <th class="ctr">Lab Constant</th>
-          <th class="num">Total Lab</th>
-          <th class="num">Total Value ($)</th>
+          <th class="num">Total Hours</th>
+          <th class="num">Labour Rate</th>
+          <th class="num">Labour Amount</th>
+          <th class="num">Materials Rate</th>
+          <th class="num">Materials Amount</th>
+          <th class="num">Plant/Sundry Rate</th>
+          <th class="num">Plant/Sundry Amount</th>
+          <th class="num">Subcontractors Rate</th>
+          <th class="num">Subcontractors Amount</th>
+          <th class="num">Total Rate</th>
+          <th class="num">Total Amount ($)</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr class="empty-row"><td colspan="13">No line items yet.</td></tr>'}
+        ${rows || '<tr class="empty-row"><td colspan="16">No line items yet.</td></tr>'}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="9" class="num">SUB TOTAL</td>
-          <td class="num">${fmt2(subSupply)}</td>
+          <td colspan="5" class="num">SUB TOTAL</td>
+          <td class="num">${fmtQ(subHours)}</td>
           <td></td>
-          <td class="num">${fmt2(subLab)}</td>
+          <td class="num">${fmt2(subLabour)}</td>
           <td></td>
+          <td class="num">${fmt2(subMaterials)}</td>
+          <td></td>
+          <td class="num">${fmt2(subPlant)}</td>
+          <td></td>
+          <td class="num">${fmt2(subSubs)}</td>
+          <td></td>
+          <td class="num">${fmt2(grandTotal)}</td>
         </tr>
         <tr>
-          <td colspan="12" class="num">TRADE TOTAL</td>
+          <td colspan="15" class="num">TRADE TOTAL</td>
           <td class="num">${money2(grandTotal)}</td>
         </tr>
       </tfoot>
@@ -11695,7 +12147,7 @@ function renderOverview(){
   const openRFIs = state.communications.filter(c => c.type === 'RFI' && c.status !== 'Closed');
   const overdueRFIs = openRFIs.filter(c => c.dueDate && c.dueDate < todayYmd);
 
-  const otherOpenComms = state.communications.filter(c => c.type !== 'RFI' && c.status !== 'Closed');
+  const otherOpenComms = state.communications.filter(c => c.type !== 'RFI' && c.type !== 'WU' && c.type !== 'CR' && c.status !== 'Closed');
 
   const openPOs = state.purchaseOrders.filter(po => po.status === 'open');
   const openPOsValue = openPOs.reduce((s, po) => s + poOrderedTotal(po), 0);
@@ -15380,7 +15832,7 @@ function renderCommunicationsRegister(){
 
   if (!list.length){
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="9" style="color:var(--muted);font-style:italic;">No communications yet — click "+ New Communication" to raise an RFI, Site Instruction, Notice of Delay or EOT request.</td>`;
+    tr.innerHTML = `<td colspan="9" style="color:var(--muted);font-style:italic;">No communications yet — click "+ New Communication" to raise an RFI, Site Instruction, Notice of Delay, EOT request, Weekly Update, or Contractors Report.</td>`;
     body.appendChild(tr);
   }
 
@@ -15398,7 +15850,11 @@ function renderCommunicationsRegister(){
     tr.appendChild(tdType);
 
     const tdSubj = document.createElement('td');
-    tdSubj.textContent = c.subject || '(no subject)';
+    tdSubj.textContent = c.type === 'WU'
+      ? (c.weekStart && c.weekEnd ? `Week of ${fmtDateStr(c.weekStart)} – ${fmtDateStr(c.weekEnd)}` : '(week not set)')
+      : c.type === 'CR'
+      ? (c.periodStart && c.periodEnd ? `Period ${fmtDateStr(c.periodStart)} – ${fmtDateStr(c.periodEnd)}` : '(period not set)')
+      : (c.subject || '(no subject)');
     tr.appendChild(tdSubj);
 
     const tdSub = document.createElement('td');
@@ -15462,6 +15918,19 @@ let commReturnTo = null; // null => Communications register; {subIndex} => back 
 let meetingsRegisterFilter = 'ALL';
 let meetingDetailIndex = null;
 let qaDetailIndex = null;
+/* Page subtitle for a Communication's detail header — WU records have no
+   Subject field (hidden entirely, see renderCommDetail), so they show their
+   week range there instead; every other type still shows its subject as before. */
+function commSubtitleFor(c){
+  const label = commTypeMeta(c.type).label;
+  if (c.type === 'WU'){
+    return label + (c.weekStart && c.weekEnd ? ` — Week of ${fmtDateStr(c.weekStart)} – ${fmtDateStr(c.weekEnd)}` : '');
+  }
+  if (c.type === 'CR'){
+    return label + (c.periodStart && c.periodEnd ? ` — Period ${fmtDateStr(c.periodStart)} – ${fmtDateStr(c.periodEnd)}` : '');
+  }
+  return label + (c.subject ? ' — ' + c.subject : '');
+}
 function openCommDetail(idx, returnTo){
   commReturnTo = returnTo || null;
   switchTab('communications');
@@ -15471,7 +15940,7 @@ function openCommDetail(idx, returnTo){
   document.getElementById('view-communications').style.display = 'none';
   document.getElementById('view-communications-detail').style.display = '';
   document.getElementById('page-title').textContent = c.refNo;
-  document.getElementById('page-subtitle').textContent = commTypeMeta(c.type).label + (c.subject ? ' — ' + c.subject : '');
+  document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
   const clientRefLine = document.getElementById('page-client-ref');
   clientRefLine.textContent = ''; clientRefLine.style.display = 'none';
   document.body.classList.add('comm-detail-active');
@@ -15515,7 +15984,7 @@ function renderCommDetail(){
   if (!c) { closeCommDetail(); return; }
 
   document.getElementById('page-title').textContent = c.refNo;
-  document.getElementById('page-subtitle').textContent = commTypeMeta(c.type).label + (c.subject ? ' — ' + c.subject : '');
+  document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
 
   document.getElementById('comm-type').value = c.type;
   document.getElementById('comm-ref').value = c.refNo;
@@ -15555,6 +16024,30 @@ function renderCommDetail(){
   const detailInp = document.getElementById('comm-detail');
   if (document.activeElement !== detailInp) detailInp.value = c.detail || '';
 
+  const isWU = c.type === 'WU';
+  const isCR = c.type === 'CR';
+  // WU and CR are both "report" communications — issued out to the project
+  // team rather than raised against/answered by one recipient — so they
+  // share the same set of hidden fields (Subject/Due Date/Detail/Response/
+  // Impact/Linked Sub/To fields/Issue-as-SI), just with a different worksheet
+  // section shown in their place (comm-wu-section vs comm-cr-section below).
+  const isReport = isWU || isCR;
+  document.getElementById('comm-subject-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-due-date-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-status-responded-opt').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-status-closed-opt').textContent = isReport ? 'Sent' : 'Closed';
+  if (isReport && c.status === 'Responded'){ c.status = 'Open'; document.getElementById('comm-status').value = 'Open'; scheduleSave(); }
+  document.getElementById('comm-detail-block').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-response-block').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-impact-row').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-wu-section').style.display = isWU ? '' : 'none';
+  document.getElementById('comm-cr-section').style.display = isCR ? '' : 'none';
+  document.getElementById('comm-linked-sub-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-to-company-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-to-contact-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-to-email-field').style.display = isReport ? 'none' : '';
+  document.getElementById('comm-issue-si-section').style.display = isReport ? 'none' : '';
+
   document.getElementById('comm-cost-impact').checked = !!c.costImpact;
   document.getElementById('comm-time-impact').checked = !!c.timeImpact;
   const costField = document.getElementById('comm-cost-field');
@@ -15572,12 +16065,91 @@ function renderCommDetail(){
   document.getElementById('comm-cause-label').textContent = c.type === 'EOT' ? 'Cause / Grounds' : 'Cause of Delay';
   const causeInp = document.getElementById('comm-cause');
   if (document.activeElement !== causeInp) causeInp.value = c.causeOfDelay || '';
+  const causeAiBtn = document.getElementById('comm-cause-ai-draft');
+  causeAiBtn.style.display = (c.type === 'EOT') ? '' : 'none';
+  causeAiBtn.textContent = 'Draft with AI';
+  causeAiBtn.disabled = false;
+  document.getElementById('comm-cause-ai-hint').style.display = 'none';
 
   document.getElementById('comm-response-label').textContent = meta.responseLabel;
   const respInp = document.getElementById('comm-response');
   if (document.activeElement !== respInp) respInp.value = c.responseText || '';
   const respDateInp = document.getElementById('comm-response-date');
   if (document.activeElement !== respDateInp) respDateInp.value = c.responseDate || '';
+
+  if (isWU){
+    const wsInp = document.getElementById('comm-wu-week-start');
+    if (document.activeElement !== wsInp) wsInp.value = c.weekStart || '';
+    const weInp = document.getElementById('comm-wu-week-end');
+    if (document.activeElement !== weInp) weInp.value = c.weekEnd || '';
+
+    const pullReadout = document.getElementById('comm-wu-pull-readout');
+    if (c.wuPull){
+      const summaryLine = `Pulled from ${c.wuPull.entryCount} Site Diary ${c.wuPull.entryCount === 1 ? 'entry' : 'entries'} (${c.wuPull.daysWorked} worked) between ${fmtDateStr(c.wuPull.dateFrom)} and ${fmtDateStr(c.wuPull.dateTo)}.`;
+      const missing = c.wuPull.missingWeekdays || [];
+      const missingLine = missing.length
+        ? `<div style="color:#8a6d00;margin-top:2px;">⚠ No Site Diary entry for ${missing.map(m => m.label).join(', ')} — worth checking these weren't missed before drafting.</div>`
+        : '';
+      pullReadout.innerHTML = escapeHtml(summaryLine) + missingLine;
+    } else {
+      pullReadout.textContent = 'Not pulled yet — set the dates above and click "Pull from Site Diary".';
+    }
+
+    const wuAiBtn = document.getElementById('comm-wu-ai-draft');
+    wuAiBtn.disabled = !c.wuPull;
+    wuAiBtn.textContent = 'Draft with AI';
+    document.getElementById('comm-wu-ai-hint').style.display = 'none';
+
+    const wuFieldMap = { workPerformed: 'comm-wu-work', subcontractors: 'comm-wu-subs', deliveries: 'comm-wu-deliveries', delays: 'comm-wu-delays', incidents: 'comm-wu-incidents' };
+    Object.keys(wuFieldMap).forEach(k => {
+      const el = document.getElementById(wuFieldMap[k]);
+      if (document.activeElement !== el) el.value = (c.wuSummary && c.wuSummary[k]) || '';
+    });
+
+    const distInp = document.getElementById('comm-wu-distribution');
+    if (document.activeElement !== distInp) distInp.value = c.wuDistribution || '';
+  }
+
+  if (isCR){
+    const psInp = document.getElementById('comm-cr-period-start');
+    if (document.activeElement !== psInp) psInp.value = c.periodStart || '';
+    const peInp = document.getElementById('comm-cr-period-end');
+    if (document.activeElement !== peInp) peInp.value = c.periodEnd || '';
+
+    const diaryReadout = document.getElementById('comm-cr-pull-readout');
+    if (c.crPull){
+      const summaryLine = `Site Diary: pulled from ${c.crPull.entryCount} ${c.crPull.entryCount === 1 ? 'entry' : 'entries'} (${c.crPull.daysWorked} worked) between ${fmtDateStr(c.crPull.dateFrom)} and ${fmtDateStr(c.crPull.dateTo)}.`;
+      const missing = c.crPull.missingWeekdays || [];
+      const missingLine = missing.length
+        ? `<div style="color:#8a6d00;margin-top:2px;">⚠ No Site Diary entry for ${missing.map(m => m.label).join(', ')} — worth checking these weren't missed before drafting.</div>`
+        : '';
+      diaryReadout.innerHTML = escapeHtml(summaryLine) + missingLine;
+    } else {
+      diaryReadout.textContent = 'Site Diary: not pulled yet — set the period dates above and click "Pull from Site Diary".';
+    }
+
+    const adminReadout = document.getElementById('comm-cr-admin-readout');
+    if (c.crAdminPull){
+      const ap = c.crAdminPull;
+      adminReadout.textContent = `Open items: ${ap.openRFIs.length} open RFI${ap.openRFIs.length === 1 ? '' : 's'}, ${ap.openVariations.length} pending variation${ap.openVariations.length === 1 ? '' : 's'}${ap.claim ? `, claim ${ap.claim.no || '(no.)'} in progress` : ''} (as at ${fmtDateStr(ap.pulledAt)}).`;
+    } else {
+      adminReadout.textContent = 'Open items: not pulled yet — click "Pull Open Items" for a snapshot of open RFIs, pending Variations and the current Payment Claim.';
+    }
+
+    const crAiBtn = document.getElementById('comm-cr-ai-draft');
+    crAiBtn.disabled = !c.crPull && !c.crAdminPull;
+    crAiBtn.textContent = 'Draft with AI';
+    document.getElementById('comm-cr-ai-hint').style.display = 'none';
+
+    const crFieldMap = { healthSafety: 'comm-cr-hs', construction: 'comm-cr-construction', upcomingWorks: 'comm-cr-upcoming', design: 'comm-cr-design', consentStatus: 'comm-cr-consent', adminFinancial: 'comm-cr-admin', general: 'comm-cr-general' };
+    Object.keys(crFieldMap).forEach(k => {
+      const el = document.getElementById(crFieldMap[k]);
+      if (document.activeElement !== el) el.value = (c.crSummary && c.crSummary[k]) || '';
+    });
+
+    const crDistInp = document.getElementById('comm-cr-distribution');
+    if (document.activeElement !== crDistInp) crDistInp.value = c.crDistribution || '';
+  }
 
   renderCommAttachments(c);
   renderCommLinked(c);
@@ -15810,6 +16382,59 @@ function buildCommHtml(c){
   const toContact = c.toContact ? escapeHtml(c.toContact) : '';
   const dateStr = fmtDateStr(c.dateRaised);
   const subject = c.subject ? escapeHtml(c.subject) : '[Subject]';
+
+  if (c.type === 'WU'){
+    const ws = c.wuSummary || {};
+    const wuSection = (label, text) => {
+      const t = (text || '').trim();
+      return `<p><strong>${label}:</strong><br>${t ? escapeHtml(t).replace(/\n/g, '<br>') : '<em>Nothing to report.</em>'}</p>`;
+    };
+    return `
+      <div class="letter-date">${dateStr}</div>
+      <p class="letter-heading">${escapeHtml(meta.label)} ${escapeHtml(c.refNo)} &mdash; ${escapeHtml(projectName)}</p>
+      ${c.weekStart && c.weekEnd ? `<p><strong>Week:</strong> ${fmtDateStr(c.weekStart)} to ${fmtDateStr(c.weekEnd)}</p>` : ''}
+      ${c.wuDistribution ? `<p><strong>Distribution:</strong> ${escapeHtml(c.wuDistribution)}</p>` : ''}
+      ${wuSection('Work Performed', ws.workPerformed)}
+      ${wuSection('Subcontractors & Labour', ws.subcontractors)}
+      ${wuSection('Deliveries', ws.deliveries)}
+      ${wuSection('Delays', ws.delays)}
+      ${wuSection('Incidents & Other', ws.incidents)}
+      <p>Please contact the undersigned with any queries regarding the above.</p>
+      <p>Yours faithfully,</p>
+      <div class="letter-sign">
+        ${(() => { const mc = mainContactForGroup('Internal'); return mc && mc.contact ? `<p>${escapeHtml(mc.contact)}</p>` : ''; })()}
+        <p>${escapeHtml(companyName)}</p>
+      </div>
+    `;
+  }
+
+  if (c.type === 'CR'){
+    const cs = c.crSummary || {};
+    const crSection = (label, text) => {
+      const t = (text || '').trim();
+      return `<p><strong>${label}:</strong><br>${t ? escapeHtml(t).replace(/\n/g, '<br>') : '<em>Nothing to report.</em>'}</p>`;
+    };
+    return `
+      <div class="letter-date">${dateStr}</div>
+      <p class="letter-heading">${escapeHtml(meta.label)} ${escapeHtml(c.refNo)} &mdash; ${escapeHtml(projectName)}</p>
+      ${c.periodStart && c.periodEnd ? `<p><strong>Period:</strong> ${fmtDateStr(c.periodStart)} to ${fmtDateStr(c.periodEnd)}</p>` : ''}
+      ${c.crDistribution ? `<p><strong>Distribution:</strong> ${escapeHtml(c.crDistribution)}</p>` : ''}
+      ${crSection('Health &amp; Safety', cs.healthSafety)}
+      ${crSection('Construction', cs.construction)}
+      ${crSection('Upcoming Works', cs.upcomingWorks)}
+      ${crSection('Design', cs.design)}
+      ${crSection('Consent Status', cs.consentStatus)}
+      ${crSection('Admin &amp; Financial', cs.adminFinancial)}
+      ${crSection('General', cs.general)}
+      <p>Please contact the undersigned with any queries regarding the above.</p>
+      <p>Yours faithfully,</p>
+      <div class="letter-sign">
+        ${(() => { const mc = mainContactForGroup('Internal'); return mc && mc.contact ? `<p>${escapeHtml(mc.contact)}</p>` : ''; })()}
+        <p>${escapeHtml(companyName)}</p>
+      </div>
+    `;
+  }
+
   const detail = (c.detail || '').trim();
   const cause = (c.causeOfDelay || '').trim();
   const response = (c.responseText || '').trim();
@@ -15852,15 +16477,31 @@ function buildCommMailto(c){
   const projectName = state.project.name || 'the project';
   const meta = commTypeMeta(c.type);
   const subject = `${c.refNo} - ${c.subject || meta.label} - ${projectName}`;
-  const lines = [
-    `Please find attached ${meta.label} ${c.refNo} for ${projectName}.`,
-    '',
-    `Subject: ${c.subject || '(none)'}`,
-    '',
-    `Attached: ${meta.label} (PDF)`,
-    '',
-    'Please respond at your earliest convenience.'
-  ];
+  const lines = c.type === 'WU'
+    ? [
+        `Please find attached the ${meta.label} ${c.refNo} for ${projectName}${c.weekStart && c.weekEnd ? ' (week of ' + fmtDateStr(c.weekStart) + ' to ' + fmtDateStr(c.weekEnd) + ')' : ''}.`,
+        '',
+        `Attached: ${meta.label} (PDF)`,
+        '',
+        c.wuDistribution ? `Distribution: ${c.wuDistribution}` : 'Please forward to the wider project team as appropriate.'
+      ]
+    : c.type === 'CR'
+    ? [
+        `Please find attached the ${meta.label} ${c.refNo} for ${projectName}${c.periodStart && c.periodEnd ? ' (period ' + fmtDateStr(c.periodStart) + ' to ' + fmtDateStr(c.periodEnd) + ')' : ''}, ahead of the next site meeting.`,
+        '',
+        `Attached: ${meta.label} (PDF)`,
+        '',
+        c.crDistribution ? `Distribution: ${c.crDistribution}` : 'Please forward to the wider project team as appropriate.'
+      ]
+    : [
+        `Please find attached ${meta.label} ${c.refNo} for ${projectName}.`,
+        '',
+        `Subject: ${c.subject || '(none)'}`,
+        '',
+        `Attached: ${meta.label} (PDF)`,
+        '',
+        'Please respond at your earliest convenience.'
+      ];
   const body = lines.join('\n');
   const to = c.toEmail || '';
   return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -17374,6 +18015,89 @@ function freshSiteDiaryEntry(date){
   };
 }
 function siteDiaryEntryForDate(dateStr){ return state.siteDiary.entries.find(e => e.date === dateStr) || null; }
+/* Finds weekdays (Mon-Fri) in [dateFrom, dateTo] with NO Site Diary entry at all —
+   distinct from a day that has an entry marked "non-work day" (that's a deliberate
+   record, not a gap). Used to gently flag likely-missed diary days when pulling for
+   a Weekly Update, since site staff often forget to log a day rather than
+   deliberately skip it, and a silent gap would otherwise just read as "nothing
+   happened" in the drafted summary. Parses dates as local (not UTC) to match
+   sdISODate()'s convention elsewhere, avoiding an off-by-one day near midnight. */
+function siteDiaryMissingWeekdays(dateFrom, dateTo){
+  const [fy, fm, fd] = dateFrom.split('-').map(Number);
+  const [ty, tm, td] = dateTo.split('-').map(Number);
+  const start = new Date(fy, fm - 1, fd);
+  const end = new Date(ty, tm - 1, td);
+  const missing = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)){
+    const dow = d.getDay(); // 0 = Sunday, 6 = Saturday
+    if (dow === 0 || dow === 6) continue;
+    const dateStr = sdISODate(d);
+    if (!siteDiaryEntryForDate(dateStr)){
+      missing.push({ date: dateStr, label: d.toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' }) });
+    }
+  }
+  return missing;
+}
+/* Pulls every Site Diary entry whose date falls within [dateFrom, dateTo] (inclusive,
+   both YYYY-MM-DD) and flattens them into one structured object — the raw material
+   for a WU (Weekly Update) Communication. Kept deliberately as data only (no prose)
+   so "Pull from Site Diary" and "Draft with AI" are two separate, reviewable steps:
+   the pull shows exactly what's being sent off-project before anything is turned
+   into client-facing wording. Resolves subcontractor/variation ids to their display
+   names the same way the Site Diary print report already does. */
+function aggregateSiteDiaryForRange(dateFrom, dateTo){
+  const entries = state.siteDiary.entries
+    .filter(e => e.date >= dateFrom && e.date <= dateTo)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const out = {
+    dateFrom, dateTo,
+    entryCount: entries.length,
+    daysWorked: entries.filter(e => e.workedToday).length,
+    missingWeekdays: siteDiaryMissingWeekdays(dateFrom, dateTo),
+    subs: [], deliveries: [], delays: [], incidents: [], additionalWorks: [], dailyNotes: []
+  };
+  entries.forEach(e => {
+    (e.subs || []).forEach(s => {
+      const sub = state.subcontractors.find(x => x.id === s.subcontractorId);
+      out.subs.push({ date: e.date, company: sub ? (sub.company || '') : '', tradesmen: num(s.tradesmen) || 0, notes: s.notes || '' });
+    });
+    (e.deliveries || []).forEach(d => {
+      out.deliveries.push({ date: e.date, supplier: d.supplier || '', description: d.description || '', docketRef: d.docketRef || '' });
+    });
+    (e.delays || []).forEach(d => {
+      out.delays.push({ date: e.date, cause: d.cause || '', description: d.description || '', daysLost: num(d.daysLost) || 0, eot: !!d.eot });
+    });
+    (e.incidents || []).forEach(i => {
+      out.incidents.push({ date: e.date, type: i.type || '', description: i.description || '', personInvolved: i.personInvolved || '', actionTaken: i.actionTaken || '' });
+    });
+    (e.additionalWorks || []).forEach(a => {
+      const v = a.variationId ? state.variations.find(x => x.id === a.variationId) : null;
+      out.additionalWorks.push({ date: e.date, description: a.description || '', variationRef: v ? (v.ref || '') : '' });
+    });
+    if ((e.notes || '').trim()) out.dailyNotes.push({ date: e.date, notes: e.notes.trim() });
+  });
+  return out;
+}
+/* Snapshot (not date-ranged, unlike the Site Diary pull) of currently-open
+   Admin & Financial items for a Contractors Report: open RFIs, pending
+   Variations, and the current Payment Claim if one's in progress. This is
+   "as at now" rather than "within a period" because a Contractors Report
+   is a status update ahead of a meeting — what's outstanding right now is
+   what the meeting needs to discuss, not what happened in a date range. */
+function aggregateAdminFinancialSnapshot(){
+  const openRFIs = state.communications
+    .filter(c => c.type === 'RFI' && c.status !== 'Closed')
+    .map(c => ({ refNo: c.refNo, subject: c.subject || '', dateRaised: c.dateRaised || '', dueDate: c.dueDate || '' }));
+  const openVariations = state.variations
+    .filter(v => (v.status || 'Pending') !== 'Approved')
+    .map(v => ({ ref: v.ref || '', title: v.title || '', status: v.status || 'Pending', submitted: num(v.submitted) || 0 }));
+  const claim = (state.claim && state.claim.no) ? {
+    no: state.claim.no,
+    periodStart: state.claim.periodStart || '',
+    periodEnd: state.claim.periodEnd || ''
+  } : null;
+  return { openRFIs, openVariations, claim, pulledAt: sdISODate(new Date()) };
+}
 /* Finds a day's entry, creating a fresh one on first touch — same lazy-create
    openSiteDiaryDay() already did for a day opened by hand, factored out so
    syncHsIncidentToSiteDiary() (below) can create the day's entry too when an
@@ -21453,6 +22177,7 @@ function applyTakeoffToLine(takeoffId){
   if (!t || t.qty === null || t.qty === undefined) return;
   const { item, rerenderCell, qtyInput, updateRowTotals } = takeoffPickerCtx;
   item.qty = t.qty;
+  item.qtyMode = 'takeoff';
   item.takeoffSource = { takeoffId: t.id, pulledQty: t.qty, label: t.label, pulledAt: new Date().toISOString() };
   // If the line has no UOM yet, adopt the takeoff's unit as a sensible default.
   if (!item.uom || !String(item.uom).trim()) item.uom = t.unit || '';
@@ -24497,12 +25222,13 @@ function wireStaticEvents(){
 
   document.getElementById('trade-search').addEventListener('input', e => { tradeSearchFilter = e.target.value; renderTrades(); });
   document.getElementById('tab-overview').addEventListener('click', () => switchTab('overview'));
-  document.getElementById('tab-analysis').addEventListener('click', () => switchTab('analysis'));
+  document.getElementById('tab-tendering').addEventListener('click', () => switchTab(lastTenderingSubTab));
+  document.querySelectorAll('#tendering-nav .subdet-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tsection));
+  });
   document.getElementById('close-pg-worksheet').addEventListener('click', () => closePgWorksheet());
   document.getElementById('close-fc-worksheet').addEventListener('click', () => closeFcWorksheet());
-  document.getElementById('tab-gantt').addEventListener('click', () => switchTab('gantt'));
   document.getElementById('tab-gantt2').addEventListener('click', () => switchTab('gantt2'));
-  document.getElementById('tab-summary').addEventListener('click', () => switchTab('summary'));
   document.getElementById('tab-budget').addEventListener('click', () => switchTab('budget'));
   document.getElementById('tab-cashflow').addEventListener('click', () => switchTab('cashflow'));
   document.getElementById('tab-claim').addEventListener('click', () => switchTab('claim'));
@@ -24512,7 +25238,6 @@ function wireStaticEvents(){
   document.getElementById('tab-communications').addEventListener('click', () => switchTab('communications'));
   document.getElementById('tab-directory').addEventListener('click', () => switchTab('directory'));
   document.getElementById('tab-project-directory').addEventListener('click', () => switchTab('project-directory'));
-  document.getElementById('tab-drawings').addEventListener('click', () => switchTab('drawings'));
 
   document.getElementById('import-drawings-btn').addEventListener('click', () => triggerDrawingImport());
   document.getElementById('drawings-file-input').addEventListener('change', (e) => handleDrawingFilesPicked(e.target.files));
@@ -24916,8 +25641,46 @@ function wireStaticEvents(){
     if (commDetailIndex === null) return;
     const c = state.communications[commDetailIndex];
     c.causeOfDelay = e.target.value;
+    document.getElementById('comm-cause-ai-hint').style.display = 'none';
     scheduleSave();
     renderCommDoc(c);
+  });
+  document.getElementById('comm-cause-ai-draft').addEventListener('click', async () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    const btn = document.getElementById('comm-cause-ai-draft');
+    const causeInp = document.getElementById('comm-cause');
+    const existingNotes = (causeInp.value || '').trim();
+    let userNotes = existingNotes;
+    if (!existingNotes){
+      userNotes = window.prompt('Briefly describe what happened (a few notes is enough — Claude will turn it into a full EOT narrative). Leave blank to draft from the Subject only.', '') || '';
+    }
+    btn.disabled = true;
+    btn.textContent = 'Drafting…';
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('draft-eot-narrative', {
+        body: {
+          projectName: (state.project && state.project.name) || CURRENT_PROJECT_NAME || '',
+          refNo: c.refNo || '',
+          subject: c.subject || '',
+          daysClaimed: num(c.daysClaimed) || 0,
+          notes: userNotes
+        }
+      });
+      if (error) throw error;
+      if (!data || !data.draft) throw new Error('No draft returned.');
+      causeInp.value = data.draft;
+      c.causeOfDelay = data.draft;
+      document.getElementById('comm-cause-ai-hint').style.display = '';
+      scheduleSave();
+      renderCommDoc(c);
+    } catch (err){
+      console.error('AI draft failed:', err);
+      alert('Could not generate a draft right now (' + (err && err.message ? err.message : 'unknown error') + '). You can write the Cause / Grounds text directly instead.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Draft with AI';
+    }
   });
   document.getElementById('comm-response').addEventListener('input', e => {
     if (commDetailIndex === null) return;
@@ -24932,6 +25695,178 @@ function wireStaticEvents(){
     c.responseDate = e.target.value;
     scheduleSave();
     renderCommDoc(c);
+  });
+
+  document.getElementById('comm-wu-week-start').addEventListener('change', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.weekStart = e.target.value;
+    document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
+    scheduleSave();
+  });
+  document.getElementById('comm-wu-week-end').addEventListener('change', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.weekEnd = e.target.value;
+    document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
+    scheduleSave();
+  });
+  document.getElementById('comm-wu-pull').addEventListener('click', () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    const from = document.getElementById('comm-wu-week-start').value;
+    const to = document.getElementById('comm-wu-week-end').value;
+    if (!from || !to){ alert('Set both Week Starting and Week Ending dates first.'); return; }
+    if (from > to){ alert('Week Starting must be before Week Ending.'); return; }
+    c.weekStart = from;
+    c.weekEnd = to;
+    c.wuPull = aggregateSiteDiaryForRange(from, to);
+    scheduleSave();
+    renderCommDetail();
+  });
+  const wuFieldIds = { workPerformed: 'comm-wu-work', subcontractors: 'comm-wu-subs', deliveries: 'comm-wu-deliveries', delays: 'comm-wu-delays', incidents: 'comm-wu-incidents' };
+  Object.keys(wuFieldIds).forEach(k => {
+    document.getElementById(wuFieldIds[k]).addEventListener('input', e => {
+      if (commDetailIndex === null) return;
+      const c = state.communications[commDetailIndex];
+      if (!c.wuSummary) c.wuSummary = { workPerformed: '', subcontractors: '', deliveries: '', delays: '', incidents: '' };
+      c.wuSummary[k] = e.target.value;
+      document.getElementById('comm-wu-ai-hint').style.display = 'none';
+      scheduleSave();
+      renderCommDoc(c);
+    });
+  });
+  document.getElementById('comm-wu-distribution').addEventListener('input', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.wuDistribution = e.target.value;
+    scheduleSave();
+    renderCommDoc(c);
+  });
+  document.getElementById('comm-wu-ai-draft').addEventListener('click', async () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    if (!c.wuPull){ alert('Pull from Site Diary first, so there\'s data to summarize.'); return; }
+    const btn = document.getElementById('comm-wu-ai-draft');
+    btn.disabled = true;
+    btn.textContent = 'Drafting…';
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('draft-weekly-update', {
+        body: {
+          projectName: (state.project && state.project.name) || CURRENT_PROJECT_NAME || '',
+          refNo: c.refNo || '',
+          weekStart: c.weekStart || '',
+          weekEnd: c.weekEnd || '',
+          pull: c.wuPull
+        }
+      });
+      if (error) throw error;
+      if (!data || !data.summary) throw new Error('No summary returned.');
+      if (!c.wuSummary) c.wuSummary = { workPerformed: '', subcontractors: '', deliveries: '', delays: '', incidents: '' };
+      Object.keys(wuFieldIds).forEach(k => {
+        c.wuSummary[k] = data.summary[k] || '';
+        document.getElementById(wuFieldIds[k]).value = c.wuSummary[k];
+      });
+      document.getElementById('comm-wu-ai-hint').style.display = '';
+      scheduleSave();
+      renderCommDoc(c);
+    } catch (err){
+      console.error('AI weekly update draft failed:', err);
+      alert('Could not generate a draft right now (' + (err && err.message ? err.message : 'unknown error') + '). You can fill the sections in directly instead.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Draft with AI';
+    }
+  });
+
+  document.getElementById('comm-cr-period-start').addEventListener('change', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.periodStart = e.target.value;
+    document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
+    scheduleSave();
+  });
+  document.getElementById('comm-cr-period-end').addEventListener('change', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.periodEnd = e.target.value;
+    document.getElementById('page-subtitle').textContent = commSubtitleFor(c);
+    scheduleSave();
+  });
+  document.getElementById('comm-cr-pull-diary').addEventListener('click', () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    const from = document.getElementById('comm-cr-period-start').value;
+    const to = document.getElementById('comm-cr-period-end').value;
+    if (!from || !to){ alert('Set both Period Starting and Period Ending dates first.'); return; }
+    if (from > to){ alert('Period Starting must be before Period Ending.'); return; }
+    c.periodStart = from;
+    c.periodEnd = to;
+    c.crPull = aggregateSiteDiaryForRange(from, to);
+    scheduleSave();
+    renderCommDetail();
+  });
+  document.getElementById('comm-cr-pull-admin').addEventListener('click', () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.crAdminPull = aggregateAdminFinancialSnapshot();
+    scheduleSave();
+    renderCommDetail();
+  });
+  const crFieldIds = { healthSafety: 'comm-cr-hs', construction: 'comm-cr-construction', upcomingWorks: 'comm-cr-upcoming', design: 'comm-cr-design', consentStatus: 'comm-cr-consent', adminFinancial: 'comm-cr-admin', general: 'comm-cr-general' };
+  Object.keys(crFieldIds).forEach(k => {
+    document.getElementById(crFieldIds[k]).addEventListener('input', e => {
+      if (commDetailIndex === null) return;
+      const c = state.communications[commDetailIndex];
+      if (!c.crSummary) c.crSummary = { healthSafety: '', construction: '', upcomingWorks: '', design: '', consentStatus: '', adminFinancial: '', general: '' };
+      c.crSummary[k] = e.target.value;
+      document.getElementById('comm-cr-ai-hint').style.display = 'none';
+      scheduleSave();
+      renderCommDoc(c);
+    });
+  });
+  document.getElementById('comm-cr-distribution').addEventListener('input', e => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    c.crDistribution = e.target.value;
+    scheduleSave();
+    renderCommDoc(c);
+  });
+  document.getElementById('comm-cr-ai-draft').addEventListener('click', async () => {
+    if (commDetailIndex === null) return;
+    const c = state.communications[commDetailIndex];
+    if (!c.crPull && !c.crAdminPull){ alert('Pull from Site Diary and/or Pull Open Items first, so there\'s data to summarize.'); return; }
+    const btn = document.getElementById('comm-cr-ai-draft');
+    btn.disabled = true;
+    btn.textContent = 'Drafting…';
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('draft-contractors-report', {
+        body: {
+          projectName: (state.project && state.project.name) || CURRENT_PROJECT_NAME || '',
+          refNo: c.refNo || '',
+          periodStart: c.periodStart || '',
+          periodEnd: c.periodEnd || '',
+          sitePull: c.crPull,
+          adminPull: c.crAdminPull
+        }
+      });
+      if (error) throw error;
+      if (!data || !data.summary) throw new Error('No summary returned.');
+      if (!c.crSummary) c.crSummary = { healthSafety: '', construction: '', upcomingWorks: '', design: '', consentStatus: '', adminFinancial: '', general: '' };
+      Object.keys(crFieldIds).forEach(k => {
+        c.crSummary[k] = data.summary[k] || '';
+        document.getElementById(crFieldIds[k]).value = c.crSummary[k];
+      });
+      document.getElementById('comm-cr-ai-hint').style.display = '';
+      scheduleSave();
+      renderCommDoc(c);
+    } catch (err){
+      console.error('AI contractors report draft failed:', err);
+      alert('Could not generate a draft right now (' + (err && err.message ? err.message : 'unknown error') + '). You can fill the sections in directly instead.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Draft with AI';
+    }
   });
 
   const commDropzone = document.getElementById('comm-attach-dropzone');
@@ -25769,14 +26704,14 @@ function wireStaticEvents(){
     if (internalPricingTradeIndex === null) return;
     const t = state.trades[internalPricingTradeIndex];
     if (!t) return;
-    t.internalPricing.items.push({ id: uid(), costCode: '', description: '', qty: 0, uom: '', factor: 1, height: 1, width: 1, supply: 0, wastePct: 0, deliveryPct: 0, fixingsPct: 0, labConstant: 0, takeoffSource: null });
+    t.internalPricing.items.push(freshInternalPricingItem(t.internalPricing.labourRate, false));
     renderInternalPricing(); scheduleSave();
   });
   document.getElementById('add-internal-pricing-heading').addEventListener('click', () => {
     if (internalPricingTradeIndex === null) return;
     const t = state.trades[internalPricingTradeIndex];
     if (!t) return;
-    t.internalPricing.items.push({ id: uid(), isHeading: true, costCode: '', description: '', qty: 0, uom: '', factor: 1, height: 1, width: 1, supply: 0, wastePct: 0, deliveryPct: 0, fixingsPct: 0, labConstant: 0, takeoffSource: null });
+    t.internalPricing.items.push(freshInternalPricingItem(t.internalPricing.labourRate, true));
     renderInternalPricing(); scheduleSave();
   });
   document.getElementById('takeoff-picker-close').addEventListener('click', () => closeTakeoffPicker());
@@ -25805,10 +26740,8 @@ function wireStaticEvents(){
     () => { refreshInternalPricingTotals(); },
     2
   );
-  document.getElementById('ip-labour-rate').addEventListener('input', () => {
-    ipRowUpdaters.forEach(fn => fn());
-    refreshInternalPricingTotals();
-  });
+  document.getElementById('ip-qty-method-manual').addEventListener('click', () => setInternalPricingQtyMethod('manual'));
+  document.getElementById('ip-qty-method-takeoff').addEventListener('click', () => setInternalPricingQtyMethod('takeoff'));
   // Text/decimal fields with a "0" default behave like the money inputs elsewhere:
   // select the existing value on focus (deferred a tick — calling .select() synchronously
   // in a focus handler is a known WebKit/mobile Safari bug) so a single click and then
@@ -26504,6 +27437,10 @@ const TAB_META = {
   photos: { title: 'Photos', sub: 'Site photo albums — organise, browse and attach photos to project communications.' }
 };
 let currentTab = 'analysis';
+// Which of the three Tendering sub-tabs to land on when the single "Tendering"
+// sidebar entry is clicked directly (rather than via the sub-nav) — remembers
+// wherever the person last was inside Tendering, defaulting to Trade Pricing.
+let lastTenderingSubTab = 'analysis';
 function switchTab(tab){
   currentTab = tab;
   document.body.classList.toggle('meta-hidden', tab !== 'analysis');
@@ -26594,9 +27531,21 @@ function switchTab(tab){
   clientRefLine.textContent = '';
   clientRefLine.style.display = 'none';
 
-  ['overview', 'analysis', 'gantt', 'gantt2', 'summary', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'directory', 'project-directory', 'drawings', 'cdrawings', 'photos'].forEach(t => {
+  ['overview', 'gantt2', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'directory', 'project-directory', 'cdrawings', 'photos'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
+  // The Tendering sidebar entry covers four sub-tabs (analysis/gantt/drawings/summary —
+  // still separate internal tab values, unchanged) via the shared sub-nav above.
+  const TENDERING_SUBTABS = ['analysis', 'gantt', 'drawings', 'summary'];
+  const inTendering = TENDERING_SUBTABS.includes(tab);
+  document.getElementById('tab-tendering').classList.toggle('active', inTendering);
+  document.getElementById('tendering-nav').style.display = inTendering ? '' : 'none';
+  if (inTendering){
+    lastTenderingSubTab = tab;
+    document.querySelectorAll('#tendering-nav .subdet-nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.tsection === tab);
+    });
+  }
 
   if (tab === 'overview') renderOverview();
   else if (tab === 'gantt') renderGantt('gantt');
