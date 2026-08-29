@@ -344,6 +344,16 @@ async function savePhoto(){
   const btn = document.getElementById('save-photo-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
+  // Read the file into raw bytes NOW, at capture time, rather than storing
+  // the File object itself in IndexedDB. This matters specifically on
+  // mobile Safari: File objects put into IndexedDB can come back empty
+  // (0 bytes) when read back moments later — a long-standing WebKit bug,
+  // not something this app can fix — which is exactly what produced the
+  // "No content provided" upload error. A plain ArrayBuffer has none of
+  // that fragility, so it's converted here, once, before the file ever
+  // touches IndexedDB.
+  const arrayBuffer = await file.arrayBuffer();
+
   const record = {
     id: uid(),
     projectId: currentProjectId,
@@ -352,7 +362,8 @@ async function savePhoto(){
     caption,
     capturedAt: new Date().toISOString(),
     sizeBytes: file.size,
-    blob: file
+    mimeType: file.type || 'image/jpeg',
+    arrayBuffer
   };
 
   // Always queue first, then immediately try to sync — this way a flaky
@@ -368,12 +379,22 @@ async function savePhoto(){
 }
 
 async function uploadOnePhoto(record){
+  // Rebuild a fresh Blob from the stored bytes right before uploading —
+  // see the comment in savePhoto() for why bytes are stored instead of a
+  // File/Blob reference. record.arrayBuffer may itself have come back from
+  // IndexedDB as a fresh ArrayBuffer or (in some browsers) a copy with a
+  // detached/zero-length view if it's been read before; sourcing the Blob
+  // straight from it here, exactly once per attempt, avoids relying on any
+  // object that might have been consumed already.
+  const blob = new Blob([record.arrayBuffer], { type: record.mimeType || 'image/jpeg' });
+  if (!blob.size) throw new Error('Photo data was empty when read back from local storage — please retake this photo.');
+
   // 1) blob to Storage — same bucket/path convention as the desktop app's
   //    PhotoStore, so the file is byte-compatible with zero translation.
   const path = `${record.projectId}/photos/${record.fileKey}`;
   const { error: uploadErr } = await supabaseClient.storage
     .from(CLOUD_FILES_BUCKET)
-    .upload(path, record.blob, { upsert: true, contentType: record.blob.type || 'image/jpeg' });
+    .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
   if (uploadErr) throw uploadErr;
 
   // 2) metadata into project_data.photos — read-modify-write the whole blob,
@@ -476,7 +497,7 @@ async function refreshQueueList(){
   }
   card.style.display = '';
   list.innerHTML = mine.map(r => {
-    const url = URL.createObjectURL(r.blob);
+    const url = URL.createObjectURL(new Blob([r.arrayBuffer], { type: r.mimeType || 'image/jpeg' }));
     const statusHtml = r.lastError
       ? `<div class="status error">${escapeHtml(r.lastError)}</div>`
       : `<div class="status pending">Waiting to sync…</div>`;
