@@ -414,6 +414,19 @@ async function uploadOnePhoto(record){
   if (writeErr) throw writeErr;
 }
 
+// Wraps a promise with a hard timeout so a genuinely stalled network request
+// (not a clean error, just nothing ever coming back) can't leave the sync
+// loop — and the whole app, since `syncing` never resets — stuck forever
+// with no feedback. 25s is generous for a photo upload on a poor connection
+// but still short enough that a real hang surfaces as a visible error
+// instead of an indefinite silent wait.
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s — check your connection`)), ms))
+  ]);
+}
+
 async function trySyncQueue(manual){
   if (syncing) return;
   syncing = true;
@@ -429,17 +442,28 @@ async function trySyncQueue(manual){
   // separate and not solved by this).
   for (const record of mine){
     try{
-      await uploadOnePhoto(record);
+      await withTimeout(uploadOnePhoto(record), 25000, 'Upload');
       await queueRemove(record.id);
     }catch(e){
+      // Surfaced on-screen (see refreshQueueList below), not just logged —
+      // "Waiting to sync…" forever with a swallowed console-only error was
+      // indistinguishable from the app actually being stuck, with no way to
+      // tell which on a phone with no dev tools attached.
       console.warn('Sync failed for', record.id, e);
-      // Left in the queue — will retry next time trySyncQueue() runs.
+      record.lastError = (e && e.message) || 'Sync failed — will retry automatically.';
+      record.lastAttempt = new Date().toISOString();
+      await queueAdd(record); // put() on the same id overwrites in place
     }
   }
   syncing = false;
   updateNetBanner();
   await refreshQueueList();
 }
+
+// Retries any still-pending photos every 20s, so a transient failure (a
+// dropped connection mid-upload, a brief RLS hiccup) clears itself up
+// without someone needing to remember to tap "Sync now" again.
+setInterval(() => { if (currentProjectId) trySyncQueue(); }, 20000);
 
 async function refreshQueueList(){
   const all = await queueAll();
@@ -453,16 +477,20 @@ async function refreshQueueList(){
   card.style.display = '';
   list.innerHTML = mine.map(r => {
     const url = URL.createObjectURL(r.blob);
+    const statusHtml = r.lastError
+      ? `<div class="status error">${escapeHtml(r.lastError)}</div>`
+      : `<div class="status pending">Waiting to sync…</div>`;
     return `
       <div class="queue-item">
         <img src="${url}" class="queue-thumb" alt="">
         <div class="queue-meta">
           <div class="cap">${escapeHtml(r.caption || r.filename)}</div>
-          <div class="status pending">Waiting to sync…</div>
+          ${statusHtml}
         </div>
       </div>`;
   }).join('');
 }
+
 
 function updateNetBanner(mode){
   const el = document.getElementById('net-banner');
