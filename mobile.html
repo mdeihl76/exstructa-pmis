@@ -36,16 +36,18 @@
   .topbar .sub{font-size:11.5px;color:#9fb3c4;margin-top:1px;}
   .topbar button{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
     color:#fff;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;}
-  .content{flex:1;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-width:520px;
-    width:100%;margin:0 auto;}
+  .content{flex:1;padding:18px 16px 24px;max-width:520px;width:100%;margin:0 auto;}
+  .content.with-tabbar{padding-bottom:calc(84px + env(safe-area-inset-bottom));}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;
     margin-bottom:14px;}
   .lbl{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px;display:block;}
-  input[type=text],input[type=email],input[type=password],textarea{
+  input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{
     width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;
     font-size:16px;background:#fff;margin-bottom:14px;}
   textarea{resize:vertical;min-height:60px;}
+  label.check-row{display:flex;align-items:center;gap:10px;font-size:15px;margin-bottom:14px;}
+  label.check-row input{width:20px;height:20px;margin:0;}
   .btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;
     font-size:16px;font-weight:700;cursor:pointer;text-align:center;}
   .btn-primary{background:var(--ink);color:#fff;}
@@ -63,7 +65,7 @@
     border-bottom:1px solid var(--line);}
   .queue-item:last-child{border-bottom:none;}
   .queue-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none;
-    background:var(--paper);}
+    background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;}
   .queue-meta{flex:1;min-width:0;}
   .queue-meta .cap{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;
     text-overflow:ellipsis;}
@@ -79,6 +81,28 @@
   .center-msg{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px;}
   .review-thumb{width:100%;border-radius:12px;margin-bottom:14px;max-height:320px;
     object-fit:cover;background:var(--paper);}
+
+  /* ---- bottom tab bar ---- */
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:10;}
+  .tabbar button{flex:1;background:none;border:none;padding:10px 4px 8px;font-size:11px;
+    font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;
+    gap:2px;border-radius:0;}
+  .tabbar button.active{color:var(--ink);}
+  .tabbar .tabicon{font-size:20px;}
+
+  /* ---- Site Diary quick-log ---- */
+  .quicklog-row{display:flex;gap:8px;margin-bottom:14px;}
+  .quicklog-btn{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:12px;
+    padding:14px 6px;font-size:12.5px;font-weight:700;color:var(--ink);text-align:center;}
+  .quicklog-btn .qicon{font-size:22px;display:block;margin-bottom:4px;}
+  .quicklog-btn:active{background:var(--paper);}
+
+  /* ---- Drawings list ---- */
+  .drawing-item{display:flex;flex-direction:column;gap:2px;}
+  .drawing-no{font-family:var(--sans-heading);font-size:16px;font-weight:700;}
+  .drawing-title{font-size:13.5px;color:var(--ink);font-weight:500;}
+  .drawing-rev{font-size:12px;color:var(--muted);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -88,34 +112,46 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
-   SQUARED FIELD — mobile companion prototype
-   Scope for this pass: Photos only (camera capture + offline
-   queue + sync), to prove out the mechanics before Site Diary
-   and Drawings are built the same way.
+   SQUARED FIELD — mobile companion app
+   Photos (camera capture), Site Diary (quick log entries), and
+   Drawings (read-only viewer) — the three tools scoped for
+   mobile use out on site.
 
    Deliberately a SEPARATE file/codebase from index.html, not a
-   responsive mode of the desktop app — see the project notes on
-   why. Shares the same Supabase project (same URL/anon key,
-   same auth, same project_data), so anything captured here is
-   immediately visible in the desktop app's Photos tab too.
+   responsive mode of the desktop app. Shares the same Supabase
+   project (same URL/anon key, same auth, same project_data), so
+   anything captured here is immediately visible in the desktop
+   app's own tabs too — Photos, Site Diary, and (read-only)
+   Drawings all read/write the exact same state shape the desktop
+   app uses, verbatim.
 
-   KNOWN LIMITATION, stated plainly rather than hidden: photo
-   metadata lives inside each project's single project_data JSON
-   blob, the same as everywhere else in this app today. Saving a
-   photo here means read that whole blob, add one photo to it,
-   write the whole blob back — exactly what the desktop app's own
-   scheduleSave() already does. If someone has the desktop app
-   open on the same project at the same moment a field photo
-   syncs, whichever save lands last wins and the other's
-   in-flight edits are silently lost — the same last-write-wins
-   risk index.html already carries between two desktop tabs,
-   just now with a second surface that can trigger it. It's not
-   worse than what exists today, but it's also not solved. The
-   real fix is giving photos their own database table instead of
-   living inside project_data, so a field upload is an independent
-   INSERT that can never collide with an unrelated desktop edit —
-   worth doing before this becomes a daily habit for a crew,  not
-   necessarily before this prototype is useful enough to test.
+   KNOWN LIMITATION, stated plainly rather than hidden: photo and
+   site diary data both live inside each project's single
+   project_data JSON blob, the same as everywhere else in this
+   app today. Saving anything here means read that whole blob,
+   change one piece of it, write the whole blob back — exactly
+   what the desktop app's own scheduleSave() already does. If
+   someone has the desktop app open on the same project at the
+   same moment something syncs from the field, whichever save
+   lands last wins and the other's in-flight edits are silently
+   lost. Not a new risk — desktop already carries it between two
+   open tabs — just a second surface that can now trigger it.
+   EVERY write from this app (photos AND diary logs) is therefore
+   run through ONE single global sequential queue (see
+   trySyncQueue() below) rather than two independent ones, so this
+   app can at least never collide with itself — a photo syncing
+   and a diary log syncing at the same moment would otherwise
+   silently overwrite each other's change to the same blob. The
+   real, complete fix is giving photos and site diary entries
+   their own database rows instead of living inside project_data,
+   so a field update can never collide with an unrelated desktop
+   edit at all — worth doing before this is a whole crew's daily
+   habit, not necessarily before it's useful enough to keep using.
+
+   Drawings is read-only here (viewing only, no markup/editing —
+   see the project notes on why), so it carries none of the above
+   risk: it's a single read of project_data plus a Storage
+   download, never a write.
    ============================================================ */
 
 const SUPABASE_URL = "https://ynlqvwerhlifcisyfnbg.supabase.co";
@@ -125,50 +161,65 @@ const CLOUD_FILES_BUCKET = 'project-files';
 const FIELD_ALBUM_NAME = 'Field Photos (mobile)';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+const todayIso = () => new Date().toISOString().slice(0, 10);
+function fmtDate(iso){
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d,10)} ${months[parseInt(m,10)-1]} ${y}`;
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
-// ---------- tiny IndexedDB-backed offline queue ----------
-// One object store, one purpose: photos captured with no connection, waiting
-// to sync. Deliberately minimal — no generic abstraction, since Site Diary's
-// queue (built next) will have different enough fields that sharing one
-// "generic queue" module now would likely just mean unpicking it later.
+// ---------- IndexedDB-backed offline queues ----------
+// Two object stores — pending_photos (unchanged from the Photos-only version)
+// and pending_diary_logs (new) — sharing one small set of generic
+// get/add/remove helpers, since both now need identical retry/error/timeout
+// handling. They stay separate stores (not one merged shape) because a
+// photo record and a diary-log record hold genuinely different fields, and
+// forcing them into one shape would just make both harder to read.
 const QUEUE_DB = 'squared_field_v1';
+const QUEUE_DB_VERSION = 2; // v1 shipped with just pending_photos; v2 adds pending_diary_logs
 function openQueueDb(){
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(QUEUE_DB, 1);
+    const req = indexedDB.open(QUEUE_DB, QUEUE_DB_VERSION);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore('pending_photos', { keyPath: 'id' });
+      const db = req.result;
+      if (!db.objectStoreNames.contains('pending_photos')) db.createObjectStore('pending_photos', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('pending_diary_logs')) db.createObjectStore('pending_diary_logs', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
-async function queueAdd(record){
+async function queueAdd(store, record){
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('pending_photos', 'readwrite');
-    tx.objectStore('pending_photos').put(record);
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(record);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
-async function queueAll(){
+async function queueAll(store){
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('pending_photos', 'readonly');
-    const req = tx.objectStore('pending_photos').getAll();
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
     req.onsuccess = () => resolve(req.result || []);
     req.onerror = () => reject(req.error);
   });
 }
-async function queueRemove(id){
+async function queueRemove(store, id){
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('pending_photos', 'readwrite');
-    tx.objectStore('pending_photos').delete(id);
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -179,12 +230,12 @@ let currentUser = null;
 let currentProjectId = localStorage.getItem('sf_project_id') || null;
 let currentProjectName = '';
 let syncing = false;
+let activeTab = 'photos'; // 'photos' | 'diary' | 'drawings'
 
 const app = document.getElementById('app');
-
 function render(html){ app.innerHTML = html; }
 
-// ---------- screens ----------
+// ---------- login / project picker ----------
 function renderLogin(errorMsg){
   render(`
     <div class="screen">
@@ -244,7 +295,7 @@ async function renderProjectPicker(){
     .from('projects').select('id, name').order('name');
   const list = document.getElementById('proj-list');
   if (error){
-    list.innerHTML = `<div class="err" style="display:block;">Could not load projects — ${error.message}</div>`;
+    list.innerHTML = `<div class="err" style="display:block;">Could not load projects — ${escapeHtml(error.message)}</div>`;
     return;
   }
   if (!projects || !projects.length){
@@ -258,7 +309,8 @@ async function renderProjectPicker(){
       currentProjectName = el.dataset.name;
       localStorage.setItem('sf_project_id', currentProjectId);
       localStorage.setItem('sf_project_name', currentProjectName);
-      renderPhotosScreen();
+      activeTab = 'photos';
+      renderActiveTab();
     });
   });
 }
@@ -271,40 +323,32 @@ function doLogout(){
   renderLogin();
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+// ---------- shared shell: topbar + content slot + tab bar ----------
+const TAB_META = {
+  photos:   { label: 'Photos',     icon: '📷' },
+  diary:    { label: 'Site Diary', icon: '📓' },
+  drawings: { label: 'Drawings',   icon: '📐' }
+};
 
-// ---------- Photos screen ----------
-let capturedFile = null;
+function renderShell(title, innerHtml){
+  const tabs = Object.keys(TAB_META).map(key => {
+    const m = TAB_META[key];
+    return `<button class="tab-btn ${key === activeTab ? 'active' : ''}" data-tab="${key}">
+      <span class="tabicon">${m.icon}</span>${m.label}
+    </button>`;
+  }).join('');
 
-async function renderPhotosScreen(){
-  currentProjectName = localStorage.getItem('sf_project_name') || currentProjectName;
   render(`
     <div class="screen">
       <div class="topbar">
         <div>
-          <h1>Photos</h1>
+          <h1>${escapeHtml(title)}</h1>
           <div class="sub">${escapeHtml(currentProjectName || 'Project')}</div>
         </div>
         <button id="switch-proj-btn">Switch</button>
       </div>
-      <div class="content">
-        <div id="net-banner"></div>
-
-        <input type="file" accept="image/*" capture="environment" id="camera-input" class="hidden">
-        <button class="btn btn-camera" id="take-photo-btn">📷 Take Photo</button>
-
-        <div id="review-card"></div>
-
-        <div class="card" id="queue-card" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span class="lbl" style="margin:0;">Pending upload</span>
-            <button class="btn-ghost btn" style="width:auto;padding:6px 12px;font-size:12px;" id="sync-now-btn">Sync now</button>
-          </div>
-          <div id="queue-list"></div>
-        </div>
-      </div>
+      <div class="content with-tabbar" id="tab-content">${innerHtml}</div>
+      <div class="tabbar">${tabs}</div>
     </div>
   `);
 
@@ -312,6 +356,41 @@ async function renderPhotosScreen(){
     currentProjectId = null;
     renderProjectPicker();
   });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      renderActiveTab();
+    });
+  });
+}
+
+function renderActiveTab(){
+  currentProjectName = localStorage.getItem('sf_project_name') || currentProjectName;
+  if (activeTab === 'photos') renderPhotosScreen();
+  else if (activeTab === 'diary') renderDiaryScreen();
+  else renderDrawingsScreen();
+}
+
+// ============================================================
+// PHOTOS
+// ============================================================
+let capturedFile = null;
+
+async function renderPhotosScreen(){
+  renderShell('Photos', `
+    <div id="net-banner"></div>
+    <input type="file" accept="image/*" capture="environment" id="camera-input" class="hidden">
+    <button class="btn btn-camera" id="take-photo-btn">📷 Take Photo</button>
+    <div id="review-card"></div>
+    <div class="card" id="queue-card" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span class="lbl" style="margin:0;">Pending upload</span>
+        <button class="btn-ghost btn" style="width:auto;padding:6px 12px;font-size:12px;" id="sync-now-btn">Sync now</button>
+      </div>
+      <div id="queue-list"></div>
+    </div>
+  `);
+
   document.getElementById('take-photo-btn').addEventListener('click', () => {
     document.getElementById('camera-input').click();
   });
@@ -319,7 +398,7 @@ async function renderPhotosScreen(){
   document.getElementById('sync-now-btn').addEventListener('click', () => trySyncQueue(true));
 
   updateNetBanner();
-  await refreshQueueList();
+  await refreshPhotoQueueList();
 }
 
 function onPhotoCaptured(e){
@@ -347,11 +426,9 @@ async function savePhoto(){
   // Read the file into raw bytes NOW, at capture time, rather than storing
   // the File object itself in IndexedDB. This matters specifically on
   // mobile Safari: File objects put into IndexedDB can come back empty
-  // (0 bytes) when read back moments later — a long-standing WebKit bug,
-  // not something this app can fix — which is exactly what produced the
-  // "No content provided" upload error. A plain ArrayBuffer has none of
-  // that fragility, so it's converted here, once, before the file ever
-  // touches IndexedDB.
+  // (0 bytes) when read back moments later — a long-standing WebKit bug —
+  // which is exactly what produced the "No content provided" upload error.
+  // A plain ArrayBuffer has none of that fragility.
   const arrayBuffer = await file.arrayBuffer();
 
   const record = {
@@ -366,40 +443,24 @@ async function savePhoto(){
     arrayBuffer
   };
 
-  // Always queue first, then immediately try to sync — this way a flaky
-  // connection that drops mid-upload still leaves the photo safely queued
-  // rather than lost, and the queue view is the one place a person needs to
-  // look to know "did this actually save".
-  await queueAdd(record);
+  await queueAdd('pending_photos', record);
   capturedFile = null;
   document.getElementById('review-card').innerHTML = '';
   document.getElementById('camera-input').value = '';
-  await refreshQueueList();
+  await refreshPhotoQueueList();
   trySyncQueue();
 }
 
 async function uploadOnePhoto(record){
-  // Rebuild a fresh Blob from the stored bytes right before uploading —
-  // see the comment in savePhoto() for why bytes are stored instead of a
-  // File/Blob reference. record.arrayBuffer may itself have come back from
-  // IndexedDB as a fresh ArrayBuffer or (in some browsers) a copy with a
-  // detached/zero-length view if it's been read before; sourcing the Blob
-  // straight from it here, exactly once per attempt, avoids relying on any
-  // object that might have been consumed already.
   const blob = new Blob([record.arrayBuffer], { type: record.mimeType || 'image/jpeg' });
   if (!blob.size) throw new Error('Photo data was empty when read back from local storage — please retake this photo.');
 
-  // 1) blob to Storage — same bucket/path convention as the desktop app's
-  //    PhotoStore, so the file is byte-compatible with zero translation.
   const path = `${record.projectId}/photos/${record.fileKey}`;
   const { error: uploadErr } = await supabaseClient.storage
     .from(CLOUD_FILES_BUCKET)
     .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
   if (uploadErr) throw uploadErr;
 
-  // 2) metadata into project_data.photos — read-modify-write the whole blob,
-  //    same mechanism scheduleSave() uses on desktop (see the top-of-file
-  //    comment on why this can collide with a concurrent desktop save).
   const { data: row, error: readErr } = await supabaseClient
     .from('projects').select('project_data').eq('id', record.projectId).single();
   if (readErr) throw readErr;
@@ -411,7 +472,7 @@ async function uploadOnePhoto(record){
 
   let album = projectData.photos.albums.find(a => a.name === FIELD_ALBUM_NAME);
   if (!album){
-    album = { id: uid(), name: FIELD_ALBUM_NAME, description: 'Uploaded from the Squared Field mobile app.', createdDate: new Date().toISOString().slice(0, 10) };
+    album = { id: uid(), name: FIELD_ALBUM_NAME, description: 'Uploaded from the Squared Field mobile app.', createdDate: todayIso() };
     projectData.photos.albums.push(album);
   }
   const existingInAlbum = projectData.photos.items.filter(p => p.albumId === album.id);
@@ -426,7 +487,7 @@ async function uploadOnePhoto(record){
     dateTaken: record.capturedAt.slice(0, 10),
     notes: '',
     sizeBytes: record.sizeBytes,
-    uploadedDate: new Date().toISOString().slice(0, 10),
+    uploadedDate: todayIso(),
     order: maxOrder + 1
   });
 
@@ -435,66 +496,13 @@ async function uploadOnePhoto(record){
   if (writeErr) throw writeErr;
 }
 
-// Wraps a promise with a hard timeout so a genuinely stalled network request
-// (not a clean error, just nothing ever coming back) can't leave the sync
-// loop — and the whole app, since `syncing` never resets — stuck forever
-// with no feedback. 25s is generous for a photo upload on a poor connection
-// but still short enough that a real hang surfaces as a visible error
-// instead of an indefinite silent wait.
-function withTimeout(promise, ms, label){
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s — check your connection`)), ms))
-  ]);
-}
-
-async function trySyncQueue(manual){
-  if (syncing) return;
-  syncing = true;
-  if (manual) updateNetBanner('syncing');
-
-  const all = await queueAll();
-  const mine = all.filter(r => r.projectId === currentProjectId);
-
-  // Sequential, not parallel — two photos syncing at once would both read
-  // project_data before either writes it back, and the second write would
-  // silently overwrite the first photo's entry. One at a time avoids that
-  // specific self-inflicted collision (the desktop-concurrency one above is
-  // separate and not solved by this).
-  for (const record of mine){
-    try{
-      await withTimeout(uploadOnePhoto(record), 25000, 'Upload');
-      await queueRemove(record.id);
-    }catch(e){
-      // Surfaced on-screen (see refreshQueueList below), not just logged —
-      // "Waiting to sync…" forever with a swallowed console-only error was
-      // indistinguishable from the app actually being stuck, with no way to
-      // tell which on a phone with no dev tools attached.
-      console.warn('Sync failed for', record.id, e);
-      record.lastError = (e && e.message) || 'Sync failed — will retry automatically.';
-      record.lastAttempt = new Date().toISOString();
-      await queueAdd(record); // put() on the same id overwrites in place
-    }
-  }
-  syncing = false;
-  updateNetBanner();
-  await refreshQueueList();
-}
-
-// Retries any still-pending photos every 20s, so a transient failure (a
-// dropped connection mid-upload, a brief RLS hiccup) clears itself up
-// without someone needing to remember to tap "Sync now" again.
-setInterval(() => { if (currentProjectId) trySyncQueue(); }, 20000);
-
-async function refreshQueueList(){
-  const all = await queueAll();
+async function refreshPhotoQueueList(){
+  const all = await queueAll('pending_photos');
   const mine = all.filter(r => r.projectId === currentProjectId);
   const card = document.getElementById('queue-card');
   const list = document.getElementById('queue-list');
-  if (!mine.length){
-    card.style.display = 'none';
-    return;
-  }
+  if (!card) return; // not the active screen any more
+  if (!mine.length){ card.style.display = 'none'; return; }
   card.style.display = '';
   list.innerHTML = mine.map(r => {
     const url = URL.createObjectURL(new Blob([r.arrayBuffer], { type: r.mimeType || 'image/jpeg' }));
@@ -512,6 +520,334 @@ async function refreshQueueList(){
   }).join('');
 }
 
+// ============================================================
+// SITE DIARY — quick, independent log entries
+// Each log (a delay, a delivery, an incident) is queued and synced on its
+// own, appended into today's Site Diary entry rather than editing the whole
+// day's record as one form — see the top-of-file comment on why that's the
+// safe pattern for something that can be captured from two places at once.
+// ============================================================
+const QUICKLOG_META = {
+  delay:    { label: 'Delay',    icon: '⏱' },
+  delivery: { label: 'Delivery', icon: '📦' },
+  incident: { label: 'Incident', icon: '⚠️' }
+};
+
+async function renderDiaryScreen(){
+  renderShell('Site Diary', `
+    <div id="net-banner"></div>
+    <p class="lbl" style="margin-bottom:8px;">Log for today — ${escapeHtml(fmtDate(todayIso()))}</p>
+    <div class="quicklog-row">
+      <button class="quicklog-btn" data-type="delay"><span class="qicon">⏱</span>Delay</button>
+      <button class="quicklog-btn" data-type="delivery"><span class="qicon">📦</span>Delivery</button>
+      <button class="quicklog-btn" data-type="incident"><span class="qicon">⚠️</span>Incident</button>
+    </div>
+    <div id="diary-form-card"></div>
+    <div class="card" id="diary-queue-card" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span class="lbl" style="margin:0;">Pending sync</span>
+        <button class="btn-ghost btn" style="width:auto;padding:6px 12px;font-size:12px;" id="diary-sync-now-btn">Sync now</button>
+      </div>
+      <div id="diary-queue-list"></div>
+    </div>
+  `);
+
+  document.querySelectorAll('.quicklog-btn').forEach(btn => {
+    btn.addEventListener('click', () => showDiaryForm(btn.dataset.type));
+  });
+  document.getElementById('diary-sync-now-btn').addEventListener('click', () => trySyncQueue(true));
+
+  updateNetBanner();
+  await refreshDiaryQueueList();
+}
+
+function showDiaryForm(type){
+  const card = document.getElementById('diary-form-card');
+  if (type === 'delay'){
+    card.innerHTML = `
+      <div class="card">
+        <label class="lbl">Cause</label>
+        <input type="text" id="df-cause" placeholder="e.g. Weather, late materials">
+        <label class="lbl">Description</label>
+        <textarea id="df-description" rows="3"></textarea>
+        <label class="lbl">Days Lost</label>
+        <input type="number" id="df-dayslost" inputmode="decimal" value="0">
+        <label class="check-row"><input type="checkbox" id="df-eot"> Potential Extension of Time</label>
+        <button class="btn btn-primary" id="df-save-btn">Save Delay</button>
+      </div>`;
+    document.getElementById('df-save-btn').addEventListener('click', () => saveDiaryLog('delay', {
+      cause: document.getElementById('df-cause').value.trim(),
+      description: document.getElementById('df-description').value.trim(),
+      daysLost: parseFloat(document.getElementById('df-dayslost').value) || 0,
+      eot: document.getElementById('df-eot').checked
+    }));
+  } else if (type === 'delivery'){
+    card.innerHTML = `
+      <div class="card">
+        <label class="lbl">Supplier</label>
+        <input type="text" id="df-supplier" placeholder="e.g. PlaceMakers">
+        <label class="lbl">Description</label>
+        <input type="text" id="df-description" placeholder="e.g. 40x plasterboard sheets">
+        <label class="lbl">Docket Ref (optional)</label>
+        <input type="text" id="df-docket">
+        <button class="btn btn-primary" id="df-save-btn">Save Delivery</button>
+      </div>`;
+    document.getElementById('df-save-btn').addEventListener('click', () => saveDiaryLog('delivery', {
+      supplier: document.getElementById('df-supplier').value.trim(),
+      description: document.getElementById('df-description').value.trim(),
+      docketRef: document.getElementById('df-docket').value.trim()
+    }));
+  } else if (type === 'incident'){
+    card.innerHTML = `
+      <div class="card">
+        <label class="lbl">Type</label>
+        <select id="df-type">
+          <option>Near Miss</option><option>Accident</option><option>Incident</option><option>Other</option>
+        </select>
+        <label class="lbl">Description</label>
+        <textarea id="df-description" rows="3"></textarea>
+        <label class="lbl">Person(s) Involved</label>
+        <input type="text" id="df-person">
+        <label class="lbl">Action Taken</label>
+        <textarea id="df-action" rows="2"></textarea>
+        <button class="btn btn-primary" id="df-save-btn">Save Incident</button>
+      </div>`;
+    document.getElementById('df-save-btn').addEventListener('click', () => saveDiaryLog('incident', {
+      type: document.getElementById('df-type').value,
+      description: document.getElementById('df-description').value.trim(),
+      personInvolved: document.getElementById('df-person').value.trim(),
+      actionTaken: document.getElementById('df-action').value.trim()
+    }));
+  }
+}
+
+async function saveDiaryLog(logType, fields){
+  const btn = document.getElementById('df-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const record = {
+    id: uid(),
+    projectId: currentProjectId,
+    logType,
+    date: todayIso(),
+    fields,
+    capturedAt: new Date().toISOString()
+  };
+  await queueAdd('pending_diary_logs', record);
+  document.getElementById('diary-form-card').innerHTML = '';
+  await refreshDiaryQueueList();
+  trySyncQueue();
+}
+
+// Builds today's entry fresh with the exact same shape freshSiteDiaryEntry()
+// uses on desktop, so a mobile-created day looks identical to a desktop-
+// created one in every other respect.
+function freshSiteDiaryEntryShape(date){
+  return {
+    id: uid(), date, workedToday: true,
+    weather: { condition: '', tempC: '', notes: '' },
+    subs: [], deliveries: [], additionalWorks: [], delays: [], incidents: [],
+    notes: '', preparedBy: '',
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+}
+
+async function uploadOneDiaryLog(record){
+  const { data: row, error: readErr } = await supabaseClient
+    .from('projects').select('project_data').eq('id', record.projectId).single();
+  if (readErr) throw readErr;
+
+  const projectData = row.project_data || {};
+  if (!projectData.siteDiary || typeof projectData.siteDiary !== 'object') projectData.siteDiary = { entries: [] };
+  if (!Array.isArray(projectData.siteDiary.entries)) projectData.siteDiary.entries = [];
+
+  let entry = projectData.siteDiary.entries.find(e => e.date === record.date);
+  if (!entry){
+    entry = freshSiteDiaryEntryShape(record.date);
+    projectData.siteDiary.entries.push(entry);
+  }
+  if (!Array.isArray(entry.delays)) entry.delays = [];
+  if (!Array.isArray(entry.deliveries)) entry.deliveries = [];
+  if (!Array.isArray(entry.incidents)) entry.incidents = [];
+
+  const f = record.fields;
+  if (record.logType === 'delay'){
+    entry.delays.push({ id: uid(), cause: f.cause || '', description: f.description || '', daysLost: f.daysLost || 0, eot: !!f.eot });
+  } else if (record.logType === 'delivery'){
+    entry.deliveries.push({ id: uid(), supplier: f.supplier || '', description: f.description || '', docketRef: f.docketRef || '', notes: '' });
+  } else if (record.logType === 'incident'){
+    entry.incidents.push({ id: uid(), type: f.type || 'Near Miss', description: f.description || '', personInvolved: f.personInvolved || '', actionTaken: f.actionTaken || '' });
+  }
+  entry.updatedAt = new Date().toISOString();
+
+  const { error: writeErr } = await supabaseClient
+    .from('projects').update({ project_data: projectData }).eq('id', record.projectId).select('id');
+  if (writeErr) throw writeErr;
+}
+
+async function refreshDiaryQueueList(){
+  const all = await queueAll('pending_diary_logs');
+  const mine = all.filter(r => r.projectId === currentProjectId);
+  const card = document.getElementById('diary-queue-card');
+  const list = document.getElementById('diary-queue-list');
+  if (!card) return; // not the active screen any more
+  if (!mine.length){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  list.innerHTML = mine.map(r => {
+    const meta = QUICKLOG_META[r.logType] || { label: r.logType, icon: '📝' };
+    const title = r.fields.description || r.fields.cause || r.fields.supplier || meta.label;
+    const statusHtml = r.lastError
+      ? `<div class="status error">${escapeHtml(r.lastError)}</div>`
+      : `<div class="status pending">Waiting to sync…</div>`;
+    return `
+      <div class="queue-item">
+        <div class="queue-thumb">${meta.icon}</div>
+        <div class="queue-meta">
+          <div class="cap">${meta.label}: ${escapeHtml(title)}</div>
+          ${statusHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+// DRAWINGS — read-only viewer
+// No offline queue here at all: nothing is ever written from this screen,
+// just a read of project_data plus a Storage download when a sheet is
+// opened, so there's no collision risk to design around.
+// ============================================================
+const CDRAWINGS_FOLDER = 'cdrawings';
+
+async function renderDrawingsScreen(){
+  renderShell('Drawings', `
+    <div id="net-banner"></div>
+    <div id="drawings-list"><p class="center-msg">Loading drawings…</p></div>
+  `);
+  updateNetBanner();
+
+  const { data: row, error } = await supabaseClient
+    .from('projects').select('project_data').eq('id', currentProjectId).single();
+  const list = document.getElementById('drawings-list');
+  if (!list) return; // navigated away already
+  if (error){
+    list.innerHTML = `<div class="err" style="display:block;">Could not load drawings — ${escapeHtml(error.message)}</div>`;
+    return;
+  }
+
+  const cd = (row.project_data && row.project_data.cdrawings) || {};
+  const sheets = Array.isArray(cd.sheets) ? cd.sheets : [];
+  const revisions = Array.isArray(cd.revisions) ? cd.revisions : [];
+
+  if (!sheets.length){
+    list.innerHTML = `<p class="center-msg">No drawings uploaded to this project yet — add them from the Drawings tool in the main Squared app.</p>`;
+    return;
+  }
+
+  const sorted = sheets.slice().sort((a, b) =>
+    (a.sheetNumber || '').localeCompare(b.sheetNumber || '', undefined, { numeric: true }));
+
+  list.innerHTML = sorted.map(sheet => {
+    const rev = revisions.find(r => r.id === sheet.currentRevisionId);
+    const pageNote = rev && rev.pageIndexInFile != null ? ` (page ${rev.pageIndexInFile + 1})` : '';
+    const revLabel = rev
+      ? `Rev ${escapeHtml(rev.revCode || '—')} · ${rev.date ? escapeHtml(fmtDate(rev.date)) : '—'}${pageNote}`
+      : 'No current revision';
+    return `<div class="proj-item drawing-item" data-sheet-id="${sheet.id}">
+      <div class="drawing-no">${escapeHtml(sheet.sheetNumber || '—')}</div>
+      <div class="drawing-title">${escapeHtml(sheet.title || '(untitled)')}</div>
+      <div class="drawing-rev">${revLabel}</div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.drawing-item').forEach(el => {
+    el.addEventListener('click', () => openDrawing(el.dataset.sheetId, sheets, revisions));
+  });
+}
+
+async function openDrawing(sheetId, sheets, revisions){
+  const sheet = sheets.find(s => s.id === sheetId);
+  if (!sheet || !sheet.currentRevisionId){ alert('This sheet has no current revision to view.'); return; }
+  const rev = revisions.find(r => r.id === sheet.currentRevisionId);
+  if (!rev){ alert('Could not find this revision.'); return; }
+
+  const list = document.getElementById('drawings-list');
+  const prevHtml = list.innerHTML;
+  list.innerHTML = `<p class="center-msg">Opening ${escapeHtml(sheet.sheetNumber || '')}…</p>`;
+
+  try{
+    const path = `${currentProjectId}/${CDRAWINGS_FOLDER}/${rev.fileKey}`;
+    const { data: blob, error } = await withTimeout(
+      supabaseClient.storage.from(CLOUD_FILES_BUCKET).download(path), 25000, 'Download'
+    );
+    if (error) throw error;
+    const url = URL.createObjectURL(blob);
+    // Navigating in the same tab hands off to the phone's own native PDF
+    // viewer — full pinch-zoom/pan/page-scroll for free, no bundling a PDF
+    // renderer into this app. The browser's back gesture returns here.
+    window.location.href = url;
+  }catch(e){
+    list.innerHTML = prevHtml;
+    list.querySelectorAll('.drawing-item').forEach(el => {
+      el.addEventListener('click', () => openDrawing(el.dataset.sheetId, sheets, revisions));
+    });
+    alert('Could not open this drawing — ' + ((e && e.message) || 'check your connection and try again.'));
+  }
+}
+
+// ============================================================
+// SYNC ENGINE — one single global queue across Photos and Site Diary
+// ============================================================
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s — check your connection`)), ms))
+  ]);
+}
+
+async function trySyncQueue(manual){
+  if (syncing) return;
+  syncing = true;
+  if (manual) updateNetBanner('syncing');
+
+  // Every project_data write this app can make — photos AND diary logs —
+  // is drained through this ONE sequential loop, not two independent ones.
+  // Running a photo-sync and a diary-log-sync at the same moment would each
+  // read project_data, change their own piece, and write back — the second
+  // write would silently discard the first's change, since both are
+  // touching the same row. One global queue makes that impossible: nothing
+  // this app writes to project_data ever overlaps with anything else it
+  // writes, even across different tools.
+  const photos = (await queueAll('pending_photos'))
+    .filter(r => r.projectId === currentProjectId)
+    .map(r => ({ store: 'pending_photos', record: r, upload: uploadOnePhoto }));
+  const logs = (await queueAll('pending_diary_logs'))
+    .filter(r => r.projectId === currentProjectId)
+    .map(r => ({ store: 'pending_diary_logs', record: r, upload: uploadOneDiaryLog }));
+
+  for (const item of [...photos, ...logs]){
+    try{
+      await withTimeout(item.upload(item.record), 25000, 'Sync');
+      await queueRemove(item.store, item.record.id);
+    }catch(e){
+      console.warn('Sync failed for', item.store, item.record.id, e);
+      item.record.lastError = (e && e.message) || 'Sync failed — will retry automatically.';
+      item.record.lastAttempt = new Date().toISOString();
+      await queueAdd(item.store, item.record);
+    }
+  }
+
+  syncing = false;
+  updateNetBanner();
+  // Only the currently-visible screen's list elements exist in the DOM —
+  // both refresh functions already guard on that and simply no-op otherwise.
+  await refreshPhotoQueueList();
+  await refreshDiaryQueueList();
+}
+
+// Retries any still-pending items every 20s, so a transient failure (a
+// dropped connection mid-upload, a brief RLS hiccup) clears itself up
+// without someone needing to remember to tap "Sync now" again.
+setInterval(() => { if (currentProjectId) trySyncQueue(); }, 20000);
 
 function updateNetBanner(mode){
   const el = document.getElementById('net-banner');
@@ -519,7 +855,7 @@ function updateNetBanner(mode){
   if (mode === 'syncing'){
     el.innerHTML = `<div class="banner synced">Syncing…</div>`;
   } else if (!navigator.onLine){
-    el.innerHTML = `<div class="banner offline">No connection — photos will save on this device and sync automatically once you're back online.</div>`;
+    el.innerHTML = `<div class="banner offline">No connection — changes will save on this device and sync automatically once you're back online.</div>`;
   } else {
     el.innerHTML = '';
   }
@@ -535,7 +871,8 @@ async function boot(){
   currentUser = user;
   if (currentProjectId){
     currentProjectName = localStorage.getItem('sf_project_name') || '';
-    await renderPhotosScreen();
+    activeTab = 'photos';
+    renderActiveTab();
     trySyncQueue();
   } else {
     renderProjectPicker();
