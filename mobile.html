@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Squared Field</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1d2d3d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Squared Field">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1d1f20; --paper:#f2f2f3; --card:#ffffff; --line:#e0e0e0;
+    --muted:#6f7276; --sidebar-bg:#1d2d3d; --sidebar-bg-2:#2b3d50;
+    --good:#2f8a5b; --good-bg:#e6f4ec; --amber:#b8752b; --amber-bg:#f7ecd6;
+    --red:#c0503f; --red-bg:#fdeceb;
+    --sans:'Barlow','Segoe UI',system-ui,sans-serif;
+    --sans-heading:'Barlow Condensed','Barlow',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;height:100%;overflow-x:hidden;}
+  button,input,textarea,select{font-family:inherit;}
+  /* This is a field tool used one-thumbed in daylight, not a desktop worksheet
+     — every tap target is large, every screen is single-column, and nothing
+     requires precision pointing the way a dense table does. */
+  .screen{min-height:100vh;display:flex;flex-direction:column;}
+  .topbar{background:linear-gradient(135deg,var(--sidebar-bg),var(--sidebar-bg-2));color:#fff;
+    padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
+    display:flex;align-items:center;justify-content:space-between;flex:none;}
+  .topbar h1{font-family:var(--sans-heading);font-size:19px;font-weight:600;margin:0;}
+  .topbar .sub{font-size:11.5px;color:#9fb3c4;margin-top:1px;}
+  .topbar button{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+    color:#fff;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;}
+  .content{flex:1;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-width:520px;
+    width:100%;margin:0 auto;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;
+    margin-bottom:14px;}
+  .lbl{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px;display:block;}
+  input[type=text],input[type=email],input[type=password],textarea{
+    width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;
+    font-size:16px;background:#fff;margin-bottom:14px;}
+  textarea{resize:vertical;min-height:60px;}
+  .btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;
+    font-size:16px;font-weight:700;cursor:pointer;text-align:center;}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-camera{background:var(--sidebar-bg);color:#fff;display:flex;align-items:center;
+    justify-content:center;gap:10px;padding:22px;font-size:17px;}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);}
+  .btn[disabled]{opacity:.5;}
+  .err{background:var(--red-bg);color:var(--red);padding:10px 12px;border-radius:8px;
+    font-size:13px;margin-bottom:14px;display:none;}
+  .proj-item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;
+    margin-bottom:10px;font-weight:600;font-size:15.5px;cursor:pointer;}
+  .proj-item:active{background:var(--paper);}
+  h2{font-family:var(--sans-heading);font-size:20px;margin:4px 0 16px;}
+  .queue-item{display:flex;gap:12px;align-items:center;padding:10px 0;
+    border-bottom:1px solid var(--line);}
+  .queue-item:last-child{border-bottom:none;}
+  .queue-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none;
+    background:var(--paper);}
+  .queue-meta{flex:1;min-width:0;}
+  .queue-meta .cap{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;}
+  .queue-meta .status{font-size:11.5px;margin-top:2px;}
+  .status.pending{color:var(--amber);}
+  .status.done{color:var(--good);}
+  .status.error{color:var(--red);}
+  .banner{padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;}
+  .banner.offline{background:var(--amber-bg);color:var(--amber);}
+  .banner.synced{background:var(--good-bg);color:var(--good);}
+  .hidden{display:none !important;}
+  .center-msg{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px;}
+  .review-thumb{width:100%;border-radius:12px;margin-bottom:14px;max-height:320px;
+    object-fit:cover;background:var(--paper);}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   SQUARED FIELD — mobile companion prototype
+   Scope for this pass: Photos only (camera capture + offline
+   queue + sync), to prove out the mechanics before Site Diary
+   and Drawings are built the same way.
+
+   Deliberately a SEPARATE file/codebase from index.html, not a
+   responsive mode of the desktop app — see the project notes on
+   why. Shares the same Supabase project (same URL/anon key,
+   same auth, same project_data), so anything captured here is
+   immediately visible in the desktop app's Photos tab too.
+
+   KNOWN LIMITATION, stated plainly rather than hidden: photo
+   metadata lives inside each project's single project_data JSON
+   blob, the same as everywhere else in this app today. Saving a
+   photo here means read that whole blob, add one photo to it,
+   write the whole blob back — exactly what the desktop app's own
+   scheduleSave() already does. If someone has the desktop app
+   open on the same project at the same moment a field photo
+   syncs, whichever save lands last wins and the other's
+   in-flight edits are silently lost — the same last-write-wins
+   risk index.html already carries between two desktop tabs,
+   just now with a second surface that can trigger it. It's not
+   worse than what exists today, but it's also not solved. The
+   real fix is giving photos their own database table instead of
+   living inside project_data, so a field upload is an independent
+   INSERT that can never collide with an unrelated desktop edit —
+   worth doing before this becomes a daily habit for a crew,  not
+   necessarily before this prototype is useful enough to test.
+   ============================================================ */
+
+const SUPABASE_URL = "https://ynlqvwerhlifcisyfnbg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlubHF2d2VyaGxpZmNpc3lmbmJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyOTU3MzAsImV4cCI6MjEwMTg3MTczMH0.O0bNhODBOwTV8ulvgXowOn9UNAb-fbipQFvYSYHu-1E";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CLOUD_FILES_BUCKET = 'project-files';
+const FIELD_ALBUM_NAME = 'Field Photos (mobile)';
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
+// ---------- tiny IndexedDB-backed offline queue ----------
+// One object store, one purpose: photos captured with no connection, waiting
+// to sync. Deliberately minimal — no generic abstraction, since Site Diary's
+// queue (built next) will have different enough fields that sharing one
+// "generic queue" module now would likely just mean unpicking it later.
+const QUEUE_DB = 'squared_field_v1';
+function openQueueDb(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(QUEUE_DB, 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore('pending_photos', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function queueAdd(record){
+  const db = await openQueueDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_photos', 'readwrite');
+    tx.objectStore('pending_photos').put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function queueAll(){
+  const db = await openQueueDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_photos', 'readonly');
+    const req = tx.objectStore('pending_photos').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function queueRemove(id){
+  const db = await openQueueDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_photos', 'readwrite');
+    tx.objectStore('pending_photos').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ---------- app state ----------
+let currentUser = null;
+let currentProjectId = localStorage.getItem('sf_project_id') || null;
+let currentProjectName = '';
+let syncing = false;
+
+const app = document.getElementById('app');
+
+function render(html){ app.innerHTML = html; }
+
+// ---------- screens ----------
+function renderLogin(errorMsg){
+  render(`
+    <div class="screen">
+      <div class="topbar"><div><h1>Squared Field</h1></div></div>
+      <div class="content">
+        <div class="card">
+          <h2>Log in</h2>
+          <div class="err" id="login-err" style="${errorMsg ? 'display:block;' : ''}">${errorMsg || ''}</div>
+          <label class="lbl">Email</label>
+          <input type="email" id="login-email" autocomplete="username">
+          <label class="lbl">Password</label>
+          <input type="password" id="login-pass" autocomplete="current-password">
+          <button class="btn btn-primary" id="login-btn">Log in</button>
+        </div>
+        <p style="text-align:center;color:var(--muted);font-size:12.5px;">
+          Same login as the main Squared app.
+        </p>
+      </div>
+    </div>
+  `);
+  document.getElementById('login-btn').addEventListener('click', doLogin);
+  document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pass').value;
+  if (!email || !password){ showLoginError('Enter your email and password.'); return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Logging in…';
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error){ showLoginError(error.message); btn.disabled = false; btn.textContent = 'Log in'; return; }
+  currentUser = data.user;
+  boot();
+}
+function showLoginError(msg){
+  const el = document.getElementById('login-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function renderProjectPicker(){
+  render(`
+    <div class="screen">
+      <div class="topbar">
+        <div><h1>Squared Field</h1></div>
+        <button id="logout-btn">Log out</button>
+      </div>
+      <div class="content">
+        <h2>Choose a project</h2>
+        <div id="proj-list"><p class="center-msg">Loading projects…</p></div>
+      </div>
+    </div>
+  `);
+  document.getElementById('logout-btn').addEventListener('click', doLogout);
+
+  const { data: projects, error } = await supabaseClient
+    .from('projects').select('id, name').order('name');
+  const list = document.getElementById('proj-list');
+  if (error){
+    list.innerHTML = `<div class="err" style="display:block;">Could not load projects — ${error.message}</div>`;
+    return;
+  }
+  if (!projects || !projects.length){
+    list.innerHTML = `<p class="center-msg">No projects available on this account yet. Open the main Squared app to create one first.</p>`;
+    return;
+  }
+  list.innerHTML = projects.map(p => `<div class="proj-item" data-id="${p.id}" data-name="${escapeHtml(p.name || 'Untitled Project')}">${escapeHtml(p.name || 'Untitled Project')}</div>`).join('');
+  list.querySelectorAll('.proj-item').forEach(el => {
+    el.addEventListener('click', () => {
+      currentProjectId = el.dataset.id;
+      currentProjectName = el.dataset.name;
+      localStorage.setItem('sf_project_id', currentProjectId);
+      localStorage.setItem('sf_project_name', currentProjectName);
+      renderPhotosScreen();
+    });
+  });
+}
+
+function doLogout(){
+  supabaseClient.auth.signOut();
+  localStorage.removeItem('sf_project_id');
+  localStorage.removeItem('sf_project_name');
+  currentProjectId = null;
+  renderLogin();
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- Photos screen ----------
+let capturedFile = null;
+
+async function renderPhotosScreen(){
+  currentProjectName = localStorage.getItem('sf_project_name') || currentProjectName;
+  render(`
+    <div class="screen">
+      <div class="topbar">
+        <div>
+          <h1>Photos</h1>
+          <div class="sub">${escapeHtml(currentProjectName || 'Project')}</div>
+        </div>
+        <button id="switch-proj-btn">Switch</button>
+      </div>
+      <div class="content">
+        <div id="net-banner"></div>
+
+        <input type="file" accept="image/*" capture="environment" id="camera-input" class="hidden">
+        <button class="btn btn-camera" id="take-photo-btn">📷 Take Photo</button>
+
+        <div id="review-card"></div>
+
+        <div class="card" id="queue-card" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span class="lbl" style="margin:0;">Pending upload</span>
+            <button class="btn-ghost btn" style="width:auto;padding:6px 12px;font-size:12px;" id="sync-now-btn">Sync now</button>
+          </div>
+          <div id="queue-list"></div>
+        </div>
+      </div>
+    </div>
+  `);
+
+  document.getElementById('switch-proj-btn').addEventListener('click', () => {
+    currentProjectId = null;
+    renderProjectPicker();
+  });
+  document.getElementById('take-photo-btn').addEventListener('click', () => {
+    document.getElementById('camera-input').click();
+  });
+  document.getElementById('camera-input').addEventListener('change', onPhotoCaptured);
+  document.getElementById('sync-now-btn').addEventListener('click', () => trySyncQueue(true));
+
+  updateNetBanner();
+  await refreshQueueList();
+}
+
+function onPhotoCaptured(e){
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  capturedFile = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('review-card').innerHTML = `
+    <div class="card">
+      <img src="${url}" class="review-thumb" alt="">
+      <label class="lbl">Caption (optional)</label>
+      <input type="text" id="caption-input" placeholder="e.g. Level 2 slab pour">
+      <button class="btn btn-primary" id="save-photo-btn">Save Photo</button>
+    </div>
+  `;
+  document.getElementById('save-photo-btn').addEventListener('click', savePhoto);
+}
+
+async function savePhoto(){
+  const caption = document.getElementById('caption-input').value.trim();
+  const file = capturedFile;
+  const btn = document.getElementById('save-photo-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const record = {
+    id: uid(),
+    projectId: currentProjectId,
+    fileKey: 'photo_' + uid(),
+    filename: file.name || ('field_' + Date.now() + '.jpg'),
+    caption,
+    capturedAt: new Date().toISOString(),
+    sizeBytes: file.size,
+    blob: file
+  };
+
+  // Always queue first, then immediately try to sync — this way a flaky
+  // connection that drops mid-upload still leaves the photo safely queued
+  // rather than lost, and the queue view is the one place a person needs to
+  // look to know "did this actually save".
+  await queueAdd(record);
+  capturedFile = null;
+  document.getElementById('review-card').innerHTML = '';
+  document.getElementById('camera-input').value = '';
+  await refreshQueueList();
+  trySyncQueue();
+}
+
+async function uploadOnePhoto(record){
+  // 1) blob to Storage — same bucket/path convention as the desktop app's
+  //    PhotoStore, so the file is byte-compatible with zero translation.
+  const path = `${record.projectId}/photos/${record.fileKey}`;
+  const { error: uploadErr } = await supabaseClient.storage
+    .from(CLOUD_FILES_BUCKET)
+    .upload(path, record.blob, { upsert: true, contentType: record.blob.type || 'image/jpeg' });
+  if (uploadErr) throw uploadErr;
+
+  // 2) metadata into project_data.photos — read-modify-write the whole blob,
+  //    same mechanism scheduleSave() uses on desktop (see the top-of-file
+  //    comment on why this can collide with a concurrent desktop save).
+  const { data: row, error: readErr } = await supabaseClient
+    .from('projects').select('project_data').eq('id', record.projectId).single();
+  if (readErr) throw readErr;
+
+  const projectData = row.project_data || {};
+  if (!projectData.photos || typeof projectData.photos !== 'object') projectData.photos = { albums: [], items: [] };
+  if (!Array.isArray(projectData.photos.albums)) projectData.photos.albums = [];
+  if (!Array.isArray(projectData.photos.items)) projectData.photos.items = [];
+
+  let album = projectData.photos.albums.find(a => a.name === FIELD_ALBUM_NAME);
+  if (!album){
+    album = { id: uid(), name: FIELD_ALBUM_NAME, description: 'Uploaded from the Squared Field mobile app.', createdDate: new Date().toISOString().slice(0, 10) };
+    projectData.photos.albums.push(album);
+  }
+  const existingInAlbum = projectData.photos.items.filter(p => p.albumId === album.id);
+  const maxOrder = existingInAlbum.reduce((m, p) => Math.max(m, p.order || 0), 0);
+
+  projectData.photos.items.push({
+    id: uid(),
+    albumId: album.id,
+    fileKey: record.fileKey,
+    filename: record.filename,
+    caption: record.caption || '',
+    dateTaken: record.capturedAt.slice(0, 10),
+    notes: '',
+    sizeBytes: record.sizeBytes,
+    uploadedDate: new Date().toISOString().slice(0, 10),
+    order: maxOrder + 1
+  });
+
+  const { error: writeErr } = await supabaseClient
+    .from('projects').update({ project_data: projectData }).eq('id', record.projectId).select('id');
+  if (writeErr) throw writeErr;
+}
+
+async function trySyncQueue(manual){
+  if (syncing) return;
+  syncing = true;
+  if (manual) updateNetBanner('syncing');
+
+  const all = await queueAll();
+  const mine = all.filter(r => r.projectId === currentProjectId);
+
+  // Sequential, not parallel — two photos syncing at once would both read
+  // project_data before either writes it back, and the second write would
+  // silently overwrite the first photo's entry. One at a time avoids that
+  // specific self-inflicted collision (the desktop-concurrency one above is
+  // separate and not solved by this).
+  for (const record of mine){
+    try{
+      await uploadOnePhoto(record);
+      await queueRemove(record.id);
+    }catch(e){
+      console.warn('Sync failed for', record.id, e);
+      // Left in the queue — will retry next time trySyncQueue() runs.
+    }
+  }
+  syncing = false;
+  updateNetBanner();
+  await refreshQueueList();
+}
+
+async function refreshQueueList(){
+  const all = await queueAll();
+  const mine = all.filter(r => r.projectId === currentProjectId);
+  const card = document.getElementById('queue-card');
+  const list = document.getElementById('queue-list');
+  if (!mine.length){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  list.innerHTML = mine.map(r => {
+    const url = URL.createObjectURL(r.blob);
+    return `
+      <div class="queue-item">
+        <img src="${url}" class="queue-thumb" alt="">
+        <div class="queue-meta">
+          <div class="cap">${escapeHtml(r.caption || r.filename)}</div>
+          <div class="status pending">Waiting to sync…</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateNetBanner(mode){
+  const el = document.getElementById('net-banner');
+  if (!el) return;
+  if (mode === 'syncing'){
+    el.innerHTML = `<div class="banner synced">Syncing…</div>`;
+  } else if (!navigator.onLine){
+    el.innerHTML = `<div class="banner offline">No connection — photos will save on this device and sync automatically once you're back online.</div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+window.addEventListener('online', () => { updateNetBanner(); trySyncQueue(); });
+window.addEventListener('offline', () => updateNetBanner());
+
+// ---------- boot ----------
+async function boot(){
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user){ renderLogin(); return; }
+  currentUser = user;
+  if (currentProjectId){
+    currentProjectName = localStorage.getItem('sf_project_name') || '';
+    await renderPhotosScreen();
+    trySyncQueue();
+  } else {
+    renderProjectPicker();
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
