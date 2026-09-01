@@ -3,19 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shared documents — Exstructa</title>
+<title>Shared documents — Squared</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#111c24;
-    --navy-2:#1a2530;
-    --gold:#f5e35c;
-    --gold-muted:#c9b25a;
-    --paper:#e2e4e4;
+    /* Squared brand palette (Squared_Branding.pdf) */
+    --paper:#f2f2f3;
+    --ink:#1d1f20;
+    --steel:#5980a6;
+    --field:#2b3d50;
+    --drab:#6f7276;
     --card:#ffffff;
-    --ink:#1b2530;
-    --muted:#6b7580;
     --line:#e0e0e0;
     --line-soft:#ececec;
     --good:#2f8a5b;
@@ -40,8 +39,8 @@
   }
   header{
     width:100%;
-    background:var(--navy);
-    background-image:radial-gradient(ellipse 700px 300px at 50% -40%, var(--navy-2) 0%, var(--navy) 70%);
+    background:var(--field);
+    background-image:radial-gradient(ellipse 700px 300px at 50% -40%, var(--field) 0%, var(--ink) 70%);
   }
   .header-inner{
     max-width:640px;
@@ -51,17 +50,14 @@
     align-items:center;
     gap:10px;
   }
-  .mark{display:flex;align-items:flex-end;gap:3px;height:18px;}
-  .mark .bar{width:6px;background:var(--gold);border-radius:1px;}
-  .mark .bar:nth-child(1){height:59%;}
-  .mark .bar:nth-child(2){height:45%;}
-  .mark .bar:nth-child(3){height:100%;}
+  .mark{display:flex;align-items:center;height:18px;}
+  .mark img{width:20px;height:20px;display:block;}
   .wordmark{
     font-family:var(--sans-heading);
     font-weight:700;
     font-size:14px;
     letter-spacing:.2em;
-    color:#eef0f1;
+    color:var(--paper);
     text-transform:uppercase;
   }
 
@@ -85,7 +81,7 @@
     font-weight:600;
     letter-spacing:.08em;
     text-transform:uppercase;
-    color:var(--muted);
+    color:var(--drab);
     margin:0 0 6px;
   }
   h1{
@@ -94,11 +90,11 @@
     font-size:26px;
     line-height:1.2;
     margin:0 0 4px;
-    color:var(--navy);
+    color:var(--ink);
   }
   .project-line{
     font-size:14px;
-    color:var(--muted);
+    color:var(--drab);
     margin:0 0 20px;
   }
   .greeting{
@@ -123,21 +119,21 @@
     border-radius:8px;
     background:var(--line-soft);
     display:flex;align-items:center;justify-content:center;
-    color:var(--navy);
+    color:var(--ink);
     font-size:15px;
     font-weight:700;
     font-family:var(--sans-heading);
   }
   .file-info{flex:1;min-width:0;}
   .file-label{font-weight:600;font-size:14.5px;color:var(--ink);word-break:break-word;}
-  .file-name{font-size:12.5px;color:var(--muted);margin-top:2px;word-break:break-all;}
+  .file-name{font-size:12.5px;color:var(--drab);margin-top:2px;word-break:break-all;}
   .dl-btn{
     flex:none;
     font-family:var(--sans);
     font-size:13.5px;
     font-weight:600;
-    color:var(--navy);
-    background:var(--gold);
+    color:var(--paper);
+    background:var(--steel);
     border:none;
     border-radius:7px;
     padding:9px 16px;
@@ -153,7 +149,7 @@
     padding-top:18px;
     border-top:1px solid var(--line-soft);
     font-size:12.5px;
-    color:var(--muted);
+    color:var(--drab);
   }
 
   .state-icon{
@@ -169,10 +165,10 @@
     font-family:var(--sans-heading);
     font-weight:700;
     font-size:21px;
-    color:var(--navy);
+    color:var(--ink);
     margin:0 0 8px;
   }
-  .state-body{font-size:14.5px;color:var(--muted);line-height:1.55;margin:0;}
+  .state-body{font-size:14.5px;color:var(--drab);line-height:1.55;margin:0;}
 
   .skeleton{
     background:linear-gradient(90deg, var(--line-soft) 25%, #f4f4f4 37%, var(--line-soft) 63%);
@@ -189,17 +185,17 @@
     padding:0 20px 32px;
     text-align:center;
     font-size:12px;
-    color:var(--muted);
+    color:var(--drab);
   }
-  footer a{color:var(--muted);}
+  footer a{color:var(--drab);}
 
   .toast{
     position:fixed;
     left:50%;
     bottom:24px;
     transform:translateX(-50%) translateY(12px);
-    background:var(--navy);
-    color:#eef0f1;
+    background:var(--field);
+    color:var(--paper);
     font-size:13.5px;
     padding:11px 18px;
     border-radius:8px;
@@ -214,8 +210,8 @@
 <body>
   <header>
     <div class="header-inner">
-      <div class="mark" aria-hidden="true"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
-      <div class="wordmark">Exstructa</div>
+      <div class="mark" aria-hidden="true"><img src="data:image/png;base64,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" alt=""></div>
+      <div class="wordmark">Squared</div>
     </div>
   </header>
 
@@ -283,7 +279,7 @@
     var html = '';
     html += '<div class="eyebrow">Shared with you' + (data.recipient_name ? ' &middot; ' + escapeHtml(data.recipient_name) : '') + '</div>';
     html += '<h1>' + escapeHtml(data.title || 'Project documents') + '</h1>';
-    html += '<p class="project-line">' + escapeHtml(data.project_name || 'Exstructa project') + '</p>';
+    html += '<p class="project-line">' + escapeHtml(data.project_name || 'Squared project') + '</p>';
     html += '<p class="greeting">' + (files.length) + ' file' + (files.length === 1 ? '' : 's') + ' ' + (files.length === 1 ? 'has' : 'have') + ' been shared with you below. Click Download to save a copy.</p>';
     html += '<div class="file-list">';
     files.forEach(function(f, i){
