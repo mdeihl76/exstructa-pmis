@@ -49,7 +49,22 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(
     caches.match(event.request).then(cached => {
-      const network = fetch(event.request)
+      // event.request.mode is 'navigate' for a top-level page load like this
+      // one, and browsers spec-mandate redirect:'manual' for any fetch() of
+      // a navigation-mode Request. If /mobile.html is ever redirected for
+      // ANY reason (a Cloudflare host/HTTPS normalization, a redirect rule
+      // elsewhere on the zone, etc.), fetch(event.request) does not follow
+      // it — it resolves to an opaque 'opaqueredirect' placeholder instead
+      // of the real page. Handing that back via respondWith() on a
+      // navigation is exactly what Safari's "Response served by the service
+      // worker has redirections" error is complaining about, even when the
+      // underlying page is otherwise completely fine.
+      //
+      // Fetching by plain URL string here (not the original Request object)
+      // avoids this: a plain-URL fetch() defaults to redirect:'follow', so
+      // any redirect gets fully resolved into the real final page before we
+      // ever see the response — nothing "manual" or opaque about it.
+      const network = fetch(event.request.url)
         .then(resp => {
           // Keep the cached shell fresh whenever we do have a connection.
           if (resp && resp.ok) {
