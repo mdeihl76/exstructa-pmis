@@ -113,9 +113,9 @@
 <script>
 /* ============================================================
    SQUARED FIELD — mobile companion app
-   Photos (camera capture), Site Diary (quick log entries), and
-   Drawings (read-only viewer) — the three tools scoped for
-   mobile use out on site.
+   Photos (camera capture), Site Diary (quick log entries), Defects
+   (log a defect with photos), and Drawings (read-only viewer) — the
+   tools scoped for mobile use out on site.
 
    Deliberately a SEPARATE file/codebase from index.html, not a
    responsive mode of the desktop app. Shares the same Supabase
@@ -184,7 +184,7 @@ if ('serviceWorker' in navigator) {
 // photo record and a diary-log record hold genuinely different fields, and
 // forcing them into one shape would just make both harder to read.
 const QUEUE_DB = 'squared_field_v1';
-const QUEUE_DB_VERSION = 2; // v1 shipped with just pending_photos; v2 adds pending_diary_logs
+const QUEUE_DB_VERSION = 3; // v1: pending_photos. v2: +pending_diary_logs. v3: +pending_defects.
 function openQueueDb(){
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(QUEUE_DB, QUEUE_DB_VERSION);
@@ -192,6 +192,7 @@ function openQueueDb(){
       const db = req.result;
       if (!db.objectStoreNames.contains('pending_photos')) db.createObjectStore('pending_photos', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('pending_diary_logs')) db.createObjectStore('pending_diary_logs', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('pending_defects')) db.createObjectStore('pending_defects', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -327,6 +328,7 @@ function doLogout(){
 const TAB_META = {
   photos:   { label: 'Photos',     icon: '📷' },
   diary:    { label: 'Site Diary', icon: '📓' },
+  defects:  { label: 'Defects',    icon: '🛠️' },
   drawings: { label: 'Drawings',   icon: '📐' }
 };
 
@@ -368,6 +370,7 @@ function renderActiveTab(){
   currentProjectName = localStorage.getItem('sf_project_name') || currentProjectName;
   if (activeTab === 'photos') renderPhotosScreen();
   else if (activeTab === 'diary') renderDiaryScreen();
+  else if (activeTab === 'defects') renderDefectsScreen();
   else renderDrawingsScreen();
 }
 
@@ -711,6 +714,186 @@ async function refreshDiaryQueueList(){
 }
 
 // ============================================================
+// DEFECTS — log a defect on site with photos, queued and synced the same
+// way Photos/Site Diary are. Unlike Photos (queues the instant a photo is
+// captured), a defect bundles its text fields AND however many photos were
+// taken into ONE queued record, saved together with a single "Save Defect"
+// tap — a defect record isn't really "complete" with just a photo or just
+// a description on its own the way a single site photo is.
+// ============================================================
+let defectPhotoDrafts = []; // photos captured for the defect currently being filled in, not yet saved/queued
+
+async function renderDefectsScreen(){
+  defectPhotoDrafts = [];
+  renderShell('Defects', `
+    <div id="net-banner"></div>
+    <div class="card">
+      <label class="lbl">Brief Name</label>
+      <input type="text" id="def-name" placeholder="e.g. Cracked tile, Unit 4 bathroom">
+      <label class="lbl">Location</label>
+      <input type="text" id="def-location" placeholder="e.g. Level 2, Unit 4 bathroom">
+      <label class="lbl">Description</label>
+      <textarea id="def-description" rows="3" placeholder="What's wrong, and what needs to happen to fix it…"></textarea>
+      <input type="file" accept="image/*" capture="environment" id="def-camera-input" class="hidden">
+      <button class="btn btn-camera" id="def-take-photo-btn">📷 Add Photo</button>
+      <div id="def-photo-thumbs"></div>
+      <button class="btn btn-primary" id="def-save-btn" style="margin-top:14px;">Save Defect</button>
+    </div>
+    <div class="card" id="defects-queue-card" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span class="lbl" style="margin:0;">Pending sync</span>
+        <button class="btn-ghost btn" style="width:auto;padding:6px 12px;font-size:12px;" id="defects-sync-now-btn">Sync now</button>
+      </div>
+      <div id="defects-queue-list"></div>
+    </div>
+  `);
+
+  document.getElementById('def-take-photo-btn').addEventListener('click', () => {
+    document.getElementById('def-camera-input').click();
+  });
+  document.getElementById('def-camera-input').addEventListener('change', onDefectPhotoCaptured);
+  document.getElementById('def-save-btn').addEventListener('click', saveDefect);
+  document.getElementById('defects-sync-now-btn').addEventListener('click', () => trySyncQueue(true));
+
+  updateNetBanner();
+  await refreshDefectsQueueList();
+}
+
+async function onDefectPhotoCaptured(e){
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  // Same anti-Safari-bug technique as savePhoto() above — read to raw bytes
+  // immediately at capture time rather than holding onto the File object.
+  const arrayBuffer = await file.arrayBuffer();
+  defectPhotoDrafts.push({
+    fileKey: 'defectphoto_' + uid(),
+    filename: file.name || ('defect_' + Date.now() + '.jpg'),
+    mimeType: file.type || 'image/jpeg',
+    sizeBytes: file.size,
+    arrayBuffer
+  });
+  document.getElementById('def-camera-input').value = '';
+  renderDefectPhotoThumbs();
+}
+
+function renderDefectPhotoThumbs(){
+  const wrap = document.getElementById('def-photo-thumbs');
+  if (!wrap) return;
+  if (!defectPhotoDrafts.length){ wrap.innerHTML = ''; return; }
+  wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;';
+  wrap.innerHTML = defectPhotoDrafts.map((p, i) => {
+    const url = URL.createObjectURL(new Blob([p.arrayBuffer], { type: p.mimeType || 'image/jpeg' }));
+    return `<div style="position:relative;width:72px;height:72px;">
+      <img src="${url}" style="width:72px;height:72px;border-radius:8px;object-fit:cover;display:block;" alt="">
+      <button data-idx="${i}" class="def-photo-remove" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;
+        background:var(--red);color:#fff;border:2px solid #fff;font-size:12px;line-height:1;padding:0;">✕</button>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.def-photo-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      defectPhotoDrafts.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderDefectPhotoThumbs();
+    });
+  });
+}
+
+async function saveDefect(){
+  const btn = document.getElementById('def-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const record = {
+    id: uid(),
+    projectId: currentProjectId,
+    name: document.getElementById('def-name').value.trim(),
+    location: document.getElementById('def-location').value.trim(),
+    description: document.getElementById('def-description').value.trim(),
+    capturedAt: new Date().toISOString(),
+    photos: defectPhotoDrafts
+  };
+  await queueAdd('pending_defects', record);
+  defectPhotoDrafts = [];
+  document.getElementById('def-name').value = '';
+  document.getElementById('def-location').value = '';
+  document.getElementById('def-description').value = '';
+  renderDefectPhotoThumbs();
+  btn.disabled = false; btn.textContent = 'Save Defect';
+  await refreshDefectsQueueList();
+  trySyncQueue();
+}
+
+async function uploadOneDefect(record){
+  // Photos upload to Storage first, same path convention as the desktop
+  // app's DefectPhotoStore (makeCloudFileStore('defectphotos', ...)):
+  // <projectId>/defectphotos/<fileKey>.
+  for (const p of record.photos){
+    const blob = new Blob([p.arrayBuffer], { type: p.mimeType || 'image/jpeg' });
+    if (!blob.size) throw new Error(`Photo data for "${p.filename}" was empty when read back — please retake it.`);
+    const path = `${record.projectId}/defectphotos/${p.fileKey}`;
+    const { error: uploadErr } = await supabaseClient.storage
+      .from(CLOUD_FILES_BUCKET)
+      .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+    if (uploadErr) throw uploadErr;
+  }
+
+  const { data: row, error: readErr } = await supabaseClient
+    .from('projects').select('project_data').eq('id', record.projectId).single();
+  if (readErr) throw readErr;
+
+  const projectData = row.project_data || {};
+  if (!Array.isArray(projectData.defects)) projectData.defects = [];
+  if (!projectData.defectCounter) projectData.defectCounter = 0;
+  projectData.defectCounter += 1;
+  // Same Job Number prefix convention as the desktop app's jobPrefix() —
+  // duplicated here in miniature since this file shares no code with
+  // index.html. Falls back to no prefix if a Job Number hasn't been
+  // assigned to this project yet, matching jobPrefix()'s own behaviour.
+  const jobNumber = projectData.project && projectData.project.jobNumber;
+  const refNo = (jobNumber ? jobNumber + '-' : '') + 'DEF-' + String(projectData.defectCounter).padStart(3, '0');
+
+  projectData.defects.push({
+    id: uid(),
+    refNo,
+    name: record.name || '',
+    date: record.capturedAt.slice(0, 10),
+    location: record.location || '',
+    description: record.description || '',
+    status: 'Open',
+    photos: record.photos.map(p => ({ id: uid(), fileKey: p.fileKey, filename: p.filename, sizeBytes: p.sizeBytes, uploadedDate: todayIso() }))
+  });
+
+  const { error: writeErr } = await supabaseClient
+    .from('projects').update({ project_data: projectData }).eq('id', record.projectId).select('id');
+  if (writeErr) throw writeErr;
+}
+
+async function refreshDefectsQueueList(){
+  const all = await queueAll('pending_defects');
+  const mine = all.filter(r => r.projectId === currentProjectId);
+  const card = document.getElementById('defects-queue-card');
+  const list = document.getElementById('defects-queue-list');
+  if (!card) return; // not the active screen any more
+  if (!mine.length){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  list.innerHTML = mine.map(r => {
+    const firstPhoto = r.photos && r.photos[0];
+    const thumbHtml = firstPhoto
+      ? `<img src="${URL.createObjectURL(new Blob([firstPhoto.arrayBuffer], { type: firstPhoto.mimeType || 'image/jpeg' }))}" class="queue-thumb" alt="">`
+      : `<div class="queue-thumb">🛠️</div>`;
+    const statusHtml = r.lastError
+      ? `<div class="status error">${escapeHtml(r.lastError)}</div>`
+      : `<div class="status pending">Waiting to sync…</div>`;
+    return `
+      <div class="queue-item">
+        ${thumbHtml}
+        <div class="queue-meta">
+          <div class="cap">${escapeHtml(r.name || '(untitled defect)')}</div>
+          ${statusHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
 // DRAWINGS — read-only viewer
 // No offline queue here at all: nothing is ever written from this screen,
 // just a read of project_data plus a Storage download when a sheet is
@@ -823,8 +1006,11 @@ async function trySyncQueue(manual){
   const logs = (await queueAll('pending_diary_logs'))
     .filter(r => r.projectId === currentProjectId)
     .map(r => ({ store: 'pending_diary_logs', record: r, upload: uploadOneDiaryLog }));
+  const defects = (await queueAll('pending_defects'))
+    .filter(r => r.projectId === currentProjectId)
+    .map(r => ({ store: 'pending_defects', record: r, upload: uploadOneDefect }));
 
-  for (const item of [...photos, ...logs]){
+  for (const item of [...photos, ...logs, ...defects]){
     try{
       await withTimeout(item.upload(item.record), 25000, 'Sync');
       await queueRemove(item.store, item.record.id);
@@ -842,6 +1028,7 @@ async function trySyncQueue(manual){
   // both refresh functions already guard on that and simply no-op otherwise.
   await refreshPhotoQueueList();
   await refreshDiaryQueueList();
+  await refreshDefectsQueueList();
 }
 
 // Retries any still-pending items every 20s, so a transient failure (a
