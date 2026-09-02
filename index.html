@@ -3384,9 +3384,16 @@
   }
   #dv-canvas{display:block;}
   #dv-overlay{position:absolute;top:0;left:0;pointer-events:none;}
+  /* Custom crosshair cursor (see drawCrosshairCursor()) — a solid white
+     cross blended with mix-blend-mode:difference so it inverts against
+     whatever's underneath it: black over the drawing's white paper, white
+     over a black line, always visible either way. Replaces the native
+     `cursor:crosshair` below, which rendered as white-on-white against the
+     drawing's own white background and was hard to spot. */
+  #dv-cursor{position:absolute;top:0;left:0;pointer-events:none;mix-blend-mode:difference;}
   #dv-stage.grabbing{cursor:grabbing;}
   #dv-stage.grabbable{cursor:grab;}
-  #dv-stage.measuring{cursor:crosshair;}
+  #dv-stage.measuring{cursor:none;}
   #dv-loading,#dv-error{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     color:#fff;font-size:15px;background:rgba(0,0,0,0.55);padding:12px 20px;border-radius:8px;
@@ -3435,9 +3442,12 @@
   }
   #cdv-canvas{display:block;}
   #cdv-overlay{position:absolute;top:0;left:0;pointer-events:none;}
+  /* Same custom crosshair cursor as the Takeoff viewer above — see
+     drawCrosshairCursor(). */
+  #cdv-cursor{position:absolute;top:0;left:0;pointer-events:none;mix-blend-mode:difference;}
   #cdv-stage.grabbing{cursor:grabbing;}
   #cdv-stage.grabbable{cursor:grab;}
-  #cdv-stage.measuring{cursor:crosshair;}
+  #cdv-stage.measuring{cursor:none;}
   #cdv-loading,#cdv-error{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     color:#fff;font-size:15px;background:rgba(0,0,0,0.55);padding:12px 20px;border-radius:8px;
@@ -8226,6 +8236,7 @@
       <div id="dv-canvas-wrap">
         <canvas id="dv-canvas"></canvas>
         <canvas id="dv-overlay"></canvas>
+        <canvas id="dv-cursor"></canvas>
       </div>
       <div id="dv-loading" style="display:none;">Rendering…</div>
       <div id="dv-error" style="display:none;"></div>
@@ -8289,6 +8300,7 @@
       <div id="cdv-canvas-wrap">
         <canvas id="cdv-canvas"></canvas>
         <canvas id="cdv-overlay"></canvas>
+        <canvas id="cdv-cursor"></canvas>
       </div>
       <div id="cdv-loading" style="display:none;">Rendering…</div>
       <div id="cdv-error" style="display:none;"></div>
@@ -8462,8 +8474,8 @@
             <option value="Open">Open only</option>
             <option value="Closed">Closed only</option>
           </select>
-          <button class="iconbtn no-print" id="defects-print" type="button" title="Print the register as it's currently filtered">Print Register</button>
-          <button class="iconbtn no-print" id="defects-combine-pdf" type="button" title="Combine every currently-filtered defect into one PDF">Combine into PDF</button>
+          <button class="btn btn-teal no-print" id="defects-print" type="button" title="Print the register as it's currently filtered" style="flex:none;width:auto;padding:8px 14px;font-size:12.5px;">Print Register</button>
+          <button class="btn btn-teal no-print" id="defects-combine-pdf" type="button" title="Combine every currently-filtered defect into one PDF" style="flex:none;width:auto;padding:8px 14px;font-size:12.5px;">Combine into PDF</button>
         </div>
       </div>
       <div class="scrollx"><table class="data" id="defects-table">
@@ -26693,6 +26705,12 @@ async function renderViewerPage(){
   overlay.height = Math.floor(cssViewport.height);
   overlay.style.width = Math.floor(cssViewport.width) + 'px';
   overlay.style.height = Math.floor(cssViewport.height) + 'px';
+  // Crosshair-cursor canvas — same CSS-pixel sizing as the overlay above.
+  const cursorCanvas = document.getElementById('dv-cursor');
+  cursorCanvas.width = overlay.width;
+  cursorCanvas.height = overlay.height;
+  cursorCanvas.style.width = overlay.style.width;
+  cursorCanvas.style.height = overlay.style.height;
   dvState.pageViewport = cssViewport; // scale = zoom, no dpr (overlay is CSS-pixel space)
 
   try {
@@ -26848,6 +26866,7 @@ function setTakeoffTool(tool){
   const stage = document.getElementById('dv-stage');
   stage.classList.toggle('measuring', tool !== 'pan');
   stage.classList.toggle('grabbable', tool === 'pan');
+  if (tool === 'pan') drawCrosshairCursor('dv-cursor', null, null);
   document.getElementById('dv-measure-actions').style.display = 'none';
   // The "+ Add length" button (commit this run, start a new disconnected one)
   // only makes sense for the Length tool.
@@ -26969,7 +26988,39 @@ function takeoffClick(e){
   drawOverlay();
 }
 
+/* Custom crosshair cursor for the Takeoff/Drawings measuring tools — drawn
+   on a dedicated transparent canvas (#dv-cursor / #cdv-cursor) layered on
+   top of everything else, with CSS mix-blend-mode:difference (see the
+   #dv-cursor/#cdv-cursor rules above). A plain white cross under that blend
+   mode inverts against whatever's underneath it pixel-by-pixel: black over
+   the drawing's white paper, white over a black line — always visible
+   either way, unlike the native `cursor:crosshair` it replaces, which
+   rendered white-on-white against the drawing's own background. x/y are in
+   the same CSS-pixel space as the overlay canvas (i.e. relative to the
+   canvas-wrap, not the raw page). Pass x as null to just clear it (cursor
+   left the stage). */
+function drawCrosshairCursor(canvasId, x, y){
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (x === null || x === undefined) return;
+  const arm = 11, gap = 4;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - arm, y); ctx.lineTo(x - gap, y);
+  ctx.moveTo(x + gap, y); ctx.lineTo(x + arm, y);
+  ctx.moveTo(x, y - arm); ctx.lineTo(x, y - gap);
+  ctx.moveTo(x, y + gap); ctx.lineTo(x, y + arm);
+  ctx.stroke();
+}
+
 function takeoffMouseMove(e){
+  if (dvState.tool !== 'pan'){
+    const rect = document.getElementById('dv-overlay').getBoundingClientRect();
+    drawCrosshairCursor('dv-cursor', e.clientX - rect.left, e.clientY - rect.top);
+  }
   if (dvState.tool === 'pan' || !dvState.draftPoints.length) return;
   dvState._hoverPoint = eventToPoint(e);
   drawOverlay();
@@ -27627,6 +27678,7 @@ function wireTakeoffCanvas(){
     else finishMeasurement();
   });
   stage.addEventListener('mousemove', takeoffMouseMove);
+  stage.addEventListener('mouseleave', () => drawCrosshairCursor('dv-cursor', null, null));
   document.querySelectorAll('#dv-tools .dv-tool').forEach(btn => {
     btn.addEventListener('click', () => { dvState.editingTakeoffId = null; setTakeoffTool(btn.dataset.tool); });
   });
@@ -28323,6 +28375,12 @@ async function renderCViewerPage(){
   overlay.height = Math.floor(cssViewport.height);
   overlay.style.width = Math.floor(cssViewport.width) + 'px';
   overlay.style.height = Math.floor(cssViewport.height) + 'px';
+  // Crosshair-cursor canvas — same CSS-pixel sizing as the overlay above.
+  const cursorCanvas = document.getElementById('cdv-cursor');
+  cursorCanvas.width = overlay.width;
+  cursorCanvas.height = overlay.height;
+  cursorCanvas.style.width = overlay.style.width;
+  cursorCanvas.style.height = overlay.style.height;
   cdvState.pageViewport = cssViewport; // scale = zoom, no dpr (overlay is CSS-pixel space)
 
   try {
@@ -28478,6 +28536,7 @@ function csetTakeoffTool(tool){
   const stage = document.getElementById('cdv-stage');
   stage.classList.toggle('measuring', tool !== 'pan');
   stage.classList.toggle('grabbable', tool === 'pan');
+  if (tool === 'pan') drawCrosshairCursor('cdv-cursor', null, null);
   document.getElementById('cdv-measure-actions').style.display = 'none';
   // The "+ Add length" button (commit this run, start a new disconnected one)
   // only makes sense for the Length tool.
@@ -28600,6 +28659,10 @@ function ctakeoffClick(e){
 }
 
 function ctakeoffMouseMove(e){
+  if (cdvState.tool !== 'pan'){
+    const rect = document.getElementById('cdv-overlay').getBoundingClientRect();
+    drawCrosshairCursor('cdv-cursor', e.clientX - rect.left, e.clientY - rect.top);
+  }
   if (cdvState.tool === 'pan' || !cdvState.draftPoints.length) return;
   cdvState._hoverPoint = ceventToPoint(e);
   cdrawOverlay();
@@ -29083,6 +29146,7 @@ function cwireTakeoffCanvas(){
     else cfinishMeasurement();
   });
   stage.addEventListener('mousemove', ctakeoffMouseMove);
+  stage.addEventListener('mouseleave', () => drawCrosshairCursor('cdv-cursor', null, null));
   document.querySelectorAll('#cdv-tools .dv-tool').forEach(btn => {
     btn.addEventListener('click', () => { cdvState.editingTakeoffId = null; csetTakeoffTool(btn.dataset.tool); });
   });
