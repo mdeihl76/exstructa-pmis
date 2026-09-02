@@ -1562,6 +1562,16 @@
      table-layout:fixed or a real width on its numeric inputs, so it hit the
      same problem Internal Pricing was already fixed for. */
   #rates-library-table{table-layout:fixed;}
+  /* Rates Library rows were slightly wider than the panel on ordinary laptop
+     widths, forcing a horizontal scrollbar — the Actions cell (Add to new
+     tender + delete) needs ~200px on its own, more than every other column
+     here combined once you add up the app's standard 8px-a-side header
+     padding across nine columns. Tightened header padding to 5px a side
+     for just this table (kept unscoped/unchanged everywhere else) frees a
+     few px per column without shrinking the visible column widths below
+     their own header text, and the columns below are sized to their actual
+     header-label width, not guessed. */
+  #rates-library-table th{padding:0 5px 8px;overflow:hidden;text-overflow:ellipsis;}
   #rates-library-table input.ip-compact-input{width:100%;box-sizing:border-box;}
   /* Edit/Hide toggle (Rev20) — same compact chip sizing as the Dim 1 pull
      button, and explicitly nowrap so "Hide ▾"/"Edit ▸" can never wrap their
@@ -4970,16 +4980,16 @@
       <p class="field-note" style="margin:0 0 14px;">Save a fully-rated line from any Internal Pricing worksheet (📚 button on that line) to build this up over time, or add/import rates directly here. Quantity is never stored — only description, UOM and rates carry over to a new tender.</p>
       <div class="scrollx"><table class="data" id="rates-library-table">
         <thead><tr>
-          <th style="width:120px;">Category</th>
+          <th style="width:75px;">Category</th>
           <th>Description</th>
-          <th style="width:60px;">UOM</th>
-          <th class="num" style="width:70px;" title="Labour Constant — hours per unit">Lab Con</th>
-          <th class="num" style="width:80px;">Lab Rate</th>
-          <th class="num" style="width:80px;">Mat Rate</th>
-          <th class="num" style="width:80px;">Plant Rate</th>
-          <th class="num" style="width:80px;">Sub Rate</th>
-          <th class="num" style="width:90px;" title="Combined per-unit rate">Total Rate</th>
-          <th style="width:130px;"></th>
+          <th style="width:40px;">UOM</th>
+          <th class="num" style="width:64px;" title="Labour Constant — hours per unit">Lab Con</th>
+          <th class="num" style="width:68px;">Lab Rate</th>
+          <th class="num" style="width:70px;">Mat Rate</th>
+          <th class="num" style="width:84px;">Plant Rate</th>
+          <th class="num" style="width:70px;">Sub Rate</th>
+          <th class="num" style="width:83px;" title="Combined per-unit rate">Total Rate</th>
+          <th style="width:200px;"></th>
         </tr></thead>
         <tbody id="rates-library-body"></tbody>
       </table></div>
