@@ -1678,7 +1678,7 @@
     background:none;border:none;color:#b26a00;font-size:10.5px;font-weight:600;cursor:pointer;
     padding:2px 0 0;text-decoration:underline;display:block;
   }
-  #takeoff-picker, #photo-attach-picker, #drawing-attach-picker, #cdrawing-attach-picker, #cdrawing-takeoff-picker, #completion-common-items-picker, #completion-split-picker, #nonworkingdays-modal{
+  #takeoff-picker, #photo-attach-picker, #drawing-attach-picker, #cdrawing-attach-picker, #cdrawing-takeoff-picker, #completion-common-items-picker, #completion-split-picker, #nonworkingdays-modal, #defect-modal{
     position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.45);
     display:none;align-items:center;justify-content:center;
   }
@@ -2932,6 +2932,29 @@
     #view-hs-detail .letter-sheet{border:none;padding:0;display:block !important;max-width:100% !important;}
     #view-hs-incident-detail .panel-card{border:none;box-shadow:none;padding:0;background:transparent;border-radius:0;}
     #view-hs-incident-detail .letter-sheet{border:none;padding:0;display:block !important;max-width:100% !important;}
+    /* Defects Register print: last two columns (Open →, delete) are
+       interactive-only, same convention as the Drawings/Share registers
+       above. */
+    #defects-table th:nth-last-child(-n+2), #defects-table td:nth-last-child(-n+2){display:none;}
+    #view-defects .panel-card{border:none;box-shadow:none;padding:0;background:transparent;border-radius:0;}
+    /* Defect detail modal print: Mat asked for this as a popup rather than
+       a full-page view like every other worksheet document, so unlike
+       those (#view-hs-incident-detail etc. above), the print-reveal target
+       here is scoped to the modal itself rather than a "view-*" container.
+       The modal's own chrome (header, close button, form fields — all
+       under .no-print) collapses out of flow via the existing global
+       .no-print rule, and the backdrop/centering styling that makes sense
+       on screen is turned back into a normal in-flow block so the hidden
+       letter-sheet inside it becomes the entire printed page. */
+    /* Scoped to body.defect-modal-active (set/cleared alongside the modal's
+       own open/close, see openDefectModal()/closeDefectModal()) rather than
+       bare #defect-modal — otherwise this !important override would force
+       the modal (and its otherwise-empty letter-sheet) to appear even when
+       printing the Register with the modal closed. */
+    body.defect-modal-active #defect-modal{position:static;inset:auto;background:none;display:block !important;z-index:auto;}
+    body.defect-modal-active #defect-modal .tp-panel{width:100%;max-width:100%;max-height:none;box-shadow:none;border-radius:0;background:none;overflow:visible;}
+    body.defect-modal-active #defect-modal .tp-body{overflow:visible;max-height:none;padding:0;}
+    body.defect-modal-active #defect-modal .letter-sheet{display:block !important;border:none;padding:0;max-width:100% !important;}
     #view-site-diary-detail .panel-card{border:none;box-shadow:none;padding:0;background:transparent;border-radius:0;}
     #view-site-diary-detail .letter-sheet{border:none;padding:0;display:block !important;max-width:100% !important;}
     #sd-doc-sheet{line-height:1.4;}
@@ -4741,6 +4764,7 @@
     <button class="tab-btn" id="tab-health-safety" data-tab="health-safety">Health &amp; Safety</button>
     <button class="tab-btn" id="tab-site-diary" data-tab="site-diary">Site Diary</button>
     <button class="tab-btn" id="tab-completion" data-tab="completion">Completion</button>
+    <button class="tab-btn" id="tab-defects" data-tab="defects">Defects</button>
     <button class="tab-btn" id="tab-photos" data-tab="photos">Photos</button>
   </div>
 
@@ -8421,6 +8445,89 @@
     </div>
   </div>
 
+  <!-- ============ DEFECTS REGISTER ============
+       Simple top-level register per Mat's request: click the tool, land on
+       the register, "+ New Defect" pops open its own modal (not a full
+       page swap like H&S Incidents/Site Diary — Mat specifically asked for
+       a popup) with ref/name/date/location/description/status/photos and
+       its own Print/Save as PDF. See freshDefect() and the functions
+       below renderHsIncidentDoc() for the full implementation. -->
+  <div id="view-defects" style="display:none;">
+    <div class="panel-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <button class="addbtn" id="add-defect" type="button">+ New Defect</button>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <select id="defects-filter" style="padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font-family:var(--sans);font-size:13px;">
+            <option value="all">All statuses</option>
+            <option value="Open">Open only</option>
+            <option value="Closed">Closed only</option>
+          </select>
+          <button class="iconbtn no-print" id="defects-print" type="button" title="Print the register as it's currently filtered">Print Register</button>
+          <button class="iconbtn no-print" id="defects-combine-pdf" type="button" title="Combine every currently-filtered defect into one PDF">Combine into PDF</button>
+        </div>
+      </div>
+      <div class="scrollx"><table class="data" id="defects-table">
+        <thead><tr><th>Ref</th><th>Name</th><th>Date</th><th>Location</th><th>Status</th><th style="width:70px;"></th><th style="width:36px;"></th></tr></thead>
+        <tbody id="defects-body"></tbody>
+      </table></div>
+      <p id="defects-count" class="field-note" style="margin-top:10px;"></p>
+      <p id="defects-combine-readout" class="field-note" style="margin-top:4px;"></p>
+    </div>
+  </div>
+
+  <!-- ============ DEFECT DETAIL (modal popup, see view-defects above) ============ -->
+  <div id="defect-modal" style="display:none;">
+    <div class="tp-panel" style="width:min(640px,94vw);max-height:88vh;">
+      <div class="tp-head no-print">
+        <span id="defect-modal-title">New Defect</span>
+        <button class="tp-close" id="defect-modal-close" type="button" title="Close">✕</button>
+      </div>
+      <div class="tp-body">
+        <div id="defect-form-fields" class="no-print">
+          <div class="subdet-field">
+            <label class="lbl-block">Reference</label>
+            <div class="readout" id="defect-ref-readout"></div>
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Brief Name</label>
+            <input type="text" id="defect-name" placeholder="e.g. Cracked tile, Unit 4 bathroom">
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Date</label>
+            <input type="date" id="defect-date">
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Location</label>
+            <input type="text" id="defect-location" placeholder="e.g. Level 2, Unit 4 bathroom">
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Description</label>
+            <textarea id="defect-description" rows="4" placeholder="What's wrong, and what needs to happen to fix it…"></textarea>
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Status</label>
+            <select id="defect-status">
+              <option value="Open">Open</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <div class="subdet-field">
+            <label class="lbl-block">Photos</label>
+            <div id="defect-photo-dropzone" class="comm-dropzone" tabindex="0">Drag &amp; drop photos here, or click to browse / take a photo</div>
+            <input type="file" id="defect-photo-file-input" accept="image/*" multiple style="display:none;">
+            <div id="defect-photos-empty" style="color:var(--muted);font-style:italic;display:none;margin-top:10px;">No photos attached yet.</div>
+            <div id="defect-photos-grid" class="photo-items-grid"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+            <button class="iconbtn" id="defect-delete" type="button" style="color:var(--red);">Delete Defect</button>
+            <button class="btn btn-teal" id="defect-print" type="button">Print / Save as PDF</button>
+          </div>
+        </div>
+        <div id="defect-doc-sheet" class="letter-sheet"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ PHOTOS LIBRARY ============ -->
   <div id="view-photos" style="display:none;">
     <div class="panel-card">
@@ -8987,6 +9094,8 @@ function freshState(){
     swmsCounter: 0,
     hsIncidents: [],  // Near Miss / Incident / Accident register — see freshHsIncident()
     hsIncidentCounter: 0,
+    defects: [],  // Defects register — see freshDefect()
+    defectCounter: 0,
     siteDiary: { entries: [] },
     gantt: { rows: freshGanttRows(), scale: 'day' },
     ganttConstruction: { rows: [], scale: 'day' },
@@ -9625,6 +9734,30 @@ function freshHsIncident(){
   };
 }
 
+/* Defects register: a simple defect record — reference number, brief name,
+   date, location, description, status (Open/Closed) and attached photos.
+   Deliberately minimal per Mat's request for "a simple addition" — no
+   linking to Site Diary/subcontractors/etc like H&S Incidents has, since
+   the workflow here is meant to be quick: log it, photograph it, close it
+   once fixed. */
+function nextDefectRef(){
+  state.defectCounter = (state.defectCounter || 0) + 1;
+  return jobPrefix() + 'DEF-' + String(state.defectCounter).padStart(3, '0');
+}
+function freshDefect(){
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    id: uid(),
+    refNo: nextDefectRef(),
+    name: '',
+    date: today,
+    location: '',
+    description: '',
+    status: 'Open',   // Open | Closed
+    photos: []        // { id, fileKey, filename, sizeBytes, uploadedDate }
+  };
+}
+
 /* A blank Purchase Order: PO Number is assigned sequentially (PO-0001, PO-0002…)
    from state.poCounter, never reused even if an earlier PO is deleted, so numbers
    stay unique across the life of the project. */
@@ -9739,6 +9872,7 @@ const PERMISSION_TOOLS = [
   { id: 'health-safety', label: 'Health & Safety' },
   { id: 'site-diary', label: 'Site Diary' },
   { id: 'completion', label: 'Completion' },
+  { id: 'defects', label: 'Defects' },
   { id: 'photos', label: 'Photos' }
 ];
 // Contractors Margin and Contractors Contingency are each a single aggregate line
@@ -9908,6 +10042,7 @@ const CDrawingStore = makeCloudFileStore('cdrawings', 'CDrawingStore');
 const PhotoStore = makeCloudFileStore('photos', 'PhotoStore');
 const HsDocStore = makeCloudFileStore('hsdocs', 'HsDocStore');
 const IncidentPhotoStore = makeCloudFileStore('incidentphotos', 'IncidentPhotoStore');
+const DefectPhotoStore = makeCloudFileStore('defectphotos', 'DefectPhotoStore');
 const CompletionDocStore = makeCloudFileStore('completiondocs', 'CompletionDocStore');
 const CompletionScheduleDocStore = makeCloudFileStore('completionscheduledocs', 'CompletionScheduleDocStore');
 const CompletionContractDocStore = makeCloudFileStore('completioncontractdocs', 'CompletionContractDocStore');
@@ -9989,6 +10124,8 @@ function collectLocalFileKeysByModule(){
                        keys: (state.photos && state.photos.items || []).map(p => p.fileKey).filter(Boolean) },
     hsdocs:         { dbName: 'pmqs_hsdocs_v1',         storeName: 'hsDocBlobs',         cloudStore: HsDocStore,         label: 'Subcontractor H&S documents',
                        keys: (state.hsDocs || []).map(d => d.fileKey).filter(Boolean) },
+    defectphotos:   { dbName: 'pmqs_defectphotos_v1',   storeName: 'defectPhotoBlobs',   cloudStore: DefectPhotoStore, label: 'Defect photos',
+                       keys: (state.defects || []).flatMap(r => (r.photos || []).map(p => p.fileKey)).filter(Boolean) },
     incidentphotos: { dbName: 'pmqs_incidentphotos_v1', storeName: 'incidentPhotoBlobs', cloudStore: IncidentPhotoStore, label: 'H&S incident photos',
                        keys: (state.hsIncidents || []).flatMap(r => (r.photos || []).map(p => p.fileKey)).filter(Boolean) },
     completiondocs: { dbName: 'pmqs_completiondocs_v1', storeName: 'completionDocBlobs', cloudStore: CompletionDocStore, label: 'Completion documents',
@@ -10182,6 +10319,7 @@ function backfillJobNumberOnRefs(){
   state.taRecords.forEach(rec => { rec.refNo = tag(rec.refNo); });
   state.swmsRecords.forEach(rec => { rec.refNo = tag(rec.refNo); });
   state.hsIncidents.forEach(rec => { rec.refNo = tag(rec.refNo); });
+  state.defects.forEach(rec => { rec.refNo = tag(rec.refNo); });
   [state.drawings, state.cdrawings].forEach(d => {
     if (d && Array.isArray(d.issues)) d.issues.forEach(iss => { iss.ref = tag(iss.ref); });
   });
@@ -12021,6 +12159,20 @@ async function loadState(){
       });
       state.siteDiary.entries.forEach(e => {
         e.incidents.forEach(r => { if (r.linkedHsIncidentId === undefined) r.linkedHsIncidentId = null; });
+      });
+      // Defects register — same backfill convention as hsIncidents above.
+      if (!Array.isArray(state.defects)) state.defects = [];
+      if (!state.defectCounter) state.defectCounter = 0;
+      state.defects.forEach(rec => {
+        if (!rec.id) rec.id = uid();
+        if (!rec.refNo) rec.refNo = nextDefectRef();
+        if (rec.name === undefined) rec.name = '';
+        if (rec.date === undefined) rec.date = '';
+        if (rec.location === undefined) rec.location = '';
+        if (rec.description === undefined) rec.description = '';
+        if (rec.status !== 'Open' && rec.status !== 'Closed') rec.status = 'Open';
+        if (!Array.isArray(rec.photos)) rec.photos = [];
+        rec.photos.forEach(p => { if (!p.id) p.id = uid(); });
       });
       // migrate: Budget "Pending POs" used to be a manually-typed figure; it now
       // auto-totals from open Purchase Orders by cost code (see pendingPOByCostCode),
@@ -22705,6 +22857,342 @@ function syncHsIncidentToSiteDiary(rec){
   if (siteDiaryOpenDate === rec.siteDiaryDate){ renderSdIncidents(entry); renderSiteDiaryDoc(entry); }
 }
 
+/* ============ DEFECTS ============
+   Simple top-level register — see freshDefect() above. Deliberately no
+   linking to Site Diary/subcontractors/Directory the way H&S Incidents
+   has; Mat asked for "a simple addition" — log it, photograph it, close
+   it once fixed. The "New Defect" flow pops open its own modal (per his
+   explicit ask) rather than the full-page swap-view pattern every other
+   register in this app uses for its detail — see openDefectModal() below,
+   and the print CSS rule scoped to body.defect-modal-active for how
+   Print/Save as PDF still works the same way from inside that modal. */
+let defectsFilter = 'all'; // 'all' | 'Open' | 'Closed'
+let defectModalIndex = null;
+
+const _defectPhotoUrlCache = {};
+function addDefectPhotoFiles(rec, fileList, onDone){
+  const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+  if (!files.length){ if (onDone) onDone(); return; }
+  let remaining = files.length;
+  const finish = () => { remaining--; if (remaining === 0){ scheduleSave(); if (onDone) onDone(); } };
+  files.forEach(file => {
+    if (file.size > 20 * 1024 * 1024){
+      alert(`"${file.name}" is over 20 MB and was skipped.`);
+      finish();
+      return;
+    }
+    const fileKey = 'defectphoto_' + uid();
+    DefectPhotoStore.save(fileKey, file, { filename: file.name }).then(() => {
+      rec.photos.push({ id: uid(), fileKey, filename: file.name, sizeBytes: file.size, uploadedDate: new Date().toISOString().slice(0, 10) });
+      finish();
+    }).catch(e => {
+      console.warn('Failed to store defect photo', file.name, e);
+      alert(`Could not store "${file.name}" — ${DefectPhotoStore.isAvailable() ? 'please try again.' : 'this browser session has no photo storage available.'}`);
+      finish();
+    });
+  });
+}
+async function getDefectPhotoUrl(fileKey){
+  if (_defectPhotoUrlCache[fileKey]) return _defectPhotoUrlCache[fileKey];
+  try {
+    const rec = await DefectPhotoStore.get(fileKey);
+    if (!rec || !rec.blob) return null;
+    const url = URL.createObjectURL(rec.blob);
+    _defectPhotoUrlCache[fileKey] = url;
+    return url;
+  } catch (e) { console.warn('Failed to load defect photo', fileKey, e); return null; }
+}
+function renderDefectPhotos(rec){
+  const grid = document.getElementById('defect-photos-grid');
+  const empty = document.getElementById('defect-photos-empty');
+  grid.innerHTML = '';
+  empty.style.display = rec.photos.length ? 'none' : '';
+  rec.photos.forEach((photo, idx) => {
+    const card = document.createElement('div');
+    card.className = 'photo-item-card';
+    const thumb = document.createElement('div');
+    thumb.className = 'photo-item-thumb';
+    thumb.title = 'Open full size';
+    thumb.addEventListener('click', async () => {
+      const url = await getDefectPhotoUrl(photo.fileKey);
+      if (url) window.open(url, '_blank'); else alert('This photo could not be found in storage.');
+    });
+    card.appendChild(thumb);
+    getDefectPhotoUrl(photo.fileKey).then(url => { if (url) thumb.style.backgroundImage = `url("${url}")`; });
+
+    const foot = document.createElement('div');
+    foot.className = 'hsi-photo-foot';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'iconbtn'; delBtn.type = 'button'; delBtn.textContent = '✕'; delBtn.title = 'Remove photo';
+    delBtn.addEventListener('click', () => {
+      DefectPhotoStore.remove(photo.fileKey).catch(() => {});
+      delete _defectPhotoUrlCache[photo.fileKey];
+      rec.photos.splice(idx, 1);
+      renderDefectPhotos(rec);
+      renderDefectDoc(rec);
+      scheduleSave();
+    });
+    foot.appendChild(delBtn);
+    card.appendChild(foot);
+    grid.appendChild(card);
+  });
+}
+
+function defectsFiltered(){
+  return state.defects.filter(r => defectsFilter === 'all' || r.status === defectsFilter);
+}
+
+function renderDefectsRegister(){
+  document.getElementById('defects-filter').value = defectsFilter;
+  const list = defectsFiltered();
+  const body = document.getElementById('defects-body');
+  body.innerHTML = '';
+  if (!list.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="7" style="color:var(--muted);font-style:italic;">${state.defects.length ? 'No defects match this filter.' : 'No defects yet — click "+ New Defect" to log one.'}</td>`;
+    body.appendChild(tr);
+  }
+  list.forEach(rec => {
+    const realIdx = state.defects.indexOf(rec);
+    const tr = document.createElement('tr');
+    const tdRef = document.createElement('td'); tdRef.className = 'readout'; tdRef.textContent = rec.refNo; tr.appendChild(tdRef);
+    const tdName = document.createElement('td'); tdName.textContent = rec.name || '(untitled)'; tr.appendChild(tdName);
+    const tdDate = document.createElement('td'); tdDate.textContent = rec.date ? fmtDateStr(rec.date) : '—'; tr.appendChild(tdDate);
+    const tdLoc = document.createElement('td'); tdLoc.textContent = rec.location || '—'; tr.appendChild(tdLoc);
+    const tdStatus = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (rec.status === 'Closed' ? 'badge-good' : 'badge-warn');
+    badge.textContent = rec.status;
+    tdStatus.appendChild(badge);
+    tr.appendChild(tdStatus);
+
+    const tdOpen = document.createElement('td'); tdOpen.style.textAlign = 'center';
+    const openBtn = document.createElement('button');
+    openBtn.className = 'vo-link-btn'; openBtn.type = 'button'; openBtn.textContent = 'Open →';
+    openBtn.addEventListener('click', () => openDefectModal(realIdx));
+    tdOpen.appendChild(openBtn);
+    tr.appendChild(tdOpen);
+
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'iconbtn'; delBtn.textContent = '✕'; delBtn.title = 'Delete defect';
+    delBtn.addEventListener('click', () => {
+      if (!confirm(`Delete "${rec.refNo}"? This cannot be undone.`)) return;
+      rec.photos.forEach(p => { DefectPhotoStore.remove(p.fileKey).catch(() => {}); delete _defectPhotoUrlCache[p.fileKey]; });
+      state.defects.splice(state.defects.indexOf(rec), 1);
+      renderDefectsRegister();
+      scheduleSave();
+    });
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    body.appendChild(tr);
+  });
+  const count = list.length;
+  document.getElementById('defects-count').textContent = count
+    ? count + (count === 1 ? ' defect' : ' defects') + (defectsFilter !== 'all' ? ` (${defectsFilter.toLowerCase()})` : '') + ' shown.'
+    : '';
+  document.getElementById('defects-combine-readout').textContent = '';
+}
+
+function addDefectRecord(){
+  const rec = freshDefect();
+  state.defects.push(rec);
+  scheduleSave();
+  openDefectModal(state.defects.length - 1);
+}
+
+function openDefectModal(idx){
+  const rec = state.defects[idx];
+  if (!rec) return;
+  defectModalIndex = idx;
+  document.getElementById('defect-modal-title').textContent = rec.name ? rec.name : 'New Defect';
+  document.getElementById('defect-ref-readout').textContent = rec.refNo;
+  document.getElementById('defect-name').value = rec.name || '';
+  document.getElementById('defect-date').value = rec.date || '';
+  document.getElementById('defect-location').value = rec.location || '';
+  document.getElementById('defect-description').value = rec.description || '';
+  document.getElementById('defect-status').value = rec.status;
+  renderDefectPhotos(rec);
+  renderDefectDoc(rec);
+  document.getElementById('defect-modal').style.display = 'flex';
+  document.body.classList.add('defect-modal-active');
+}
+function closeDefectModal(){
+  defectModalIndex = null;
+  document.getElementById('defect-modal').style.display = 'none';
+  document.body.classList.remove('defect-modal-active');
+  renderDefectsRegister();
+}
+function currentDefect(){
+  return defectModalIndex === null ? null : state.defects[defectModalIndex];
+}
+
+/* ---------- DEFECT DOCUMENT (Print / Save as PDF), same letter-sheet
+   convention as every other worksheet document in this app — see
+   buildHsIncidentDocHtml() above for the closest analogue. ---------- */
+async function buildDefectDocHtml(rec){
+  const projectName = (state.project.name || '[Project Name]') + jobNumberTag();
+  const dateStr = rec.date ? fmtDateStr(rec.date) : '[Date not set]';
+  const photoUrls = await Promise.all(rec.photos.map(p => getDefectPhotoUrl(p.fileKey)));
+  const photosHtml = rec.photos.length ? `
+    <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;">
+      ${rec.photos.map((p, i) => `
+        <div style="width:160px;">
+          ${photoUrls[i] ? `<img src="${photoUrls[i]}" style="width:160px;height:120px;object-fit:cover;border:1px solid var(--line);border-radius:6px;">` : `<div style="width:160px;height:120px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;">Photo unavailable</div>`}
+        </div>`).join('')}
+    </div>` : '<p><em>No photos attached.</em></p>';
+
+  return `
+    <div class="letter-date">${dateStr}</div>
+    <p class="letter-heading">Defect Report — ${escapeHtml(rec.refNo)}</p>
+    <table class="report-table meta-table">
+      <tbody>
+        <tr><td>Project</td><td>${escapeHtml(projectName)}</td></tr>
+        <tr><td>Brief Name</td><td>${escapeHtml(rec.name || '—')}</td></tr>
+        <tr><td>Date</td><td>${dateStr}</td></tr>
+        <tr><td>Location</td><td>${escapeHtml(rec.location || '—')}</td></tr>
+        <tr><td>Status</td><td>${escapeHtml(rec.status)}</td></tr>
+      </tbody>
+    </table>
+    <p style="font-weight:700;margin:18px 0 6px;">Description</p>
+    <p>${rec.description ? escapeHtml(rec.description).replace(/\n/g, '<br>') : '<em>Not recorded.</em>'}</p>
+    <p style="font-weight:700;margin:18px 0 6px;">Photos</p>
+    ${photosHtml}
+  `;
+}
+function renderDefectDoc(rec){
+  buildDefectDocHtml(rec).then(html => {
+    if (defectModalIndex === null || state.defects[defectModalIndex] !== rec) return;
+    document.getElementById('defect-doc-sheet').innerHTML = html;
+  });
+}
+
+/* ---------- "Combine into PDF" — merges every currently-filtered defect
+   into one PDF: a cover/index page, then each defect's own text summary
+   plus its photos as image pages. Same PDFLib pattern as
+   buildCompletionCombinedPdf() above (cover page via drawText, then one
+   page per attachment) — the difference here is there's no pre-existing
+   PDF/image "attachment" to embed, since a defect's report is generated
+   fresh each time rather than uploaded, so this builds each defect's
+   summary text directly with pdf-lib's drawText instead of embedding an
+   existing file. ---------- */
+async function buildDefectsCombinedPdf(){
+  const readout = document.getElementById('defects-combine-readout');
+  const list = defectsFiltered();
+  if (!list.length){
+    readout.textContent = 'No defects match the current filter to combine.';
+    return;
+  }
+  if (typeof PDFLib === 'undefined'){
+    readout.textContent = 'PDF merging library failed to load — check your internet connection and try again.';
+    return;
+  }
+  readout.textContent = 'Building…';
+  try {
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const outDoc = await PDFDocument.create();
+    const font = await outDoc.embedFont(StandardFonts.HelveticaBold);
+    const bodyFont = await outDoc.embedFont(StandardFonts.Helvetica);
+    const projectName = (state.project && state.project.name) || 'Project';
+
+    // Cover / index page
+    let coverPage = outDoc.addPage([595, 842]); // A4
+    let y = 780;
+    coverPage.drawText('Defects Register', { x: 50, y, size: 20, font, color: rgb(0.07, 0.11, 0.14) });
+    y -= 26;
+    coverPage.drawText(projectName, { x: 50, y, size: 13, font: bodyFont, color: rgb(0.3, 0.3, 0.3) });
+    y -= 18;
+    coverPage.drawText('Filter: ' + (defectsFilter === 'all' ? 'All statuses' : defectsFilter + ' only'), { x: 50, y, size: 11, font: bodyFont, color: rgb(0.3, 0.3, 0.3) });
+    y -= 14;
+    coverPage.drawText('Generated ' + fmtDateStr(new Date().toISOString()), { x: 50, y, size: 10, font: bodyFont, color: rgb(0.5, 0.5, 0.5) });
+    y -= 30;
+    coverPage.drawText('Contents:', { x: 50, y, size: 12, font, color: rgb(0.07, 0.11, 0.14) });
+    y -= 18;
+    list.forEach(rec => {
+      const label = rec.refNo + ' — ' + (rec.name || '(untitled)') + ' [' + rec.status + ']';
+      if (y < 60){ y = 800; coverPage = outDoc.addPage([595, 842]); }
+      coverPage.drawText('• ' + label, { x: 60, y, size: 10, font: bodyFont, color: rgb(0.1, 0.1, 0.1) });
+      y -= 16;
+    });
+
+    const wrapText = (text, maxWidth, size) => {
+      const words = String(text || '').split(/\s+/);
+      const lines = [];
+      let line = '';
+      words.forEach(w => {
+        const test = line ? line + ' ' + w : w;
+        if (bodyFont.widthOfTextAtSize(test, size) > maxWidth && line){
+          lines.push(line);
+          line = w;
+        } else line = test;
+      });
+      if (line) lines.push(line);
+      return lines;
+    };
+
+    for (const rec of list){
+      const page = outDoc.addPage([595, 842]);
+      let py = 790;
+      page.drawText(rec.refNo + ' — Defect Report', { x: 50, y: py, size: 16, font, color: rgb(0.07, 0.11, 0.14) });
+      py -= 26;
+      const rows = [
+        ['Brief Name', rec.name || '—'],
+        ['Date', rec.date ? fmtDateStr(rec.date) : '—'],
+        ['Location', rec.location || '—'],
+        ['Status', rec.status]
+      ];
+      rows.forEach(([label, val]) => {
+        page.drawText(label + ':', { x: 50, y: py, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
+        page.drawText(String(val), { x: 150, y: py, size: 10, font: bodyFont, color: rgb(0.1, 0.1, 0.1) });
+        py -= 16;
+      });
+      py -= 8;
+      page.drawText('Description:', { x: 50, y: py, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
+      py -= 14;
+      wrapText(rec.description || 'Not recorded.', 495, 10).forEach(line => {
+        page.drawText(line, { x: 50, y: py, size: 10, font: bodyFont, color: rgb(0.1, 0.1, 0.1) });
+        py -= 13;
+      });
+
+      // Photos — each embedded as its own image page, since a page is only
+      // 595x842 and photos + a full text summary rarely both fit cleanly.
+      for (const photo of rec.photos){
+        try {
+          const stored = await DefectPhotoStore.get(photo.fileKey);
+          if (!stored || !stored.blob) continue;
+          const bytes = new Uint8Array(await stored.blob.arrayBuffer());
+          const name = (photo.filename || '').toLowerCase();
+          let img;
+          if (name.endsWith('.png')) img = await outDoc.embedPng(bytes);
+          else if (name.endsWith('.jpg') || name.endsWith('.jpeg')) img = await outDoc.embedJpg(bytes);
+          else continue; // other image types (heic etc.) can't be embedded client-side
+          const photoPage = outDoc.addPage([595, 842]);
+          photoPage.drawText(rec.refNo + ' — photo', { x: 50, y: 810, size: 10, font: bodyFont, color: rgb(0.5, 0.5, 0.5) });
+          const scale = Math.min(495 / img.width, 720 / img.height, 1);
+          photoPage.drawImage(img, { x: 50, y: 40, width: img.width * scale, height: img.height * scale });
+        } catch (embedErr){
+          console.warn('Could not embed defect photo', photo.filename, embedErr);
+        }
+      }
+    }
+
+    const outBytes = await outDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(state.project && state.project.name || 'Project').replace(/[^\w\-]+/g, '_')}_Defects_${defectsFilter}_${sdISODate(new Date())}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    readout.textContent = `Built successfully — ${list.length} defect${list.length === 1 ? '' : 's'} combined (${defectsFilter === 'all' ? 'all statuses' : defectsFilter.toLowerCase() + ' only'}).`;
+  } catch (err){
+    console.error('Combine defects PDF failed:', err);
+    readout.textContent = 'Could not build the combined PDF (' + (err && err.message ? err.message : 'unknown error') + ').';
+  }
+}
+
 function openSiteDiaryDay(dateStr){
   switchTab('site-diary');
   const existed = !!siteDiaryEntryForDate(dateStr);
@@ -30730,6 +31218,76 @@ function wireStaticEvents(){
     if (e.dataTransfer.files.length) addIncidentPhotoFiles(rec, e.dataTransfer.files, () => { renderIncidentPhotos(rec); renderHsIncidentDoc(rec); });
   });
 
+  // Defects — register-level controls, plus the modal's own photo dropzone
+  // (same drag-and-drop/click-to-browse pattern as Incident photos above).
+  document.getElementById('tab-defects').addEventListener('click', () => switchTab('defects'));
+  document.getElementById('add-defect').addEventListener('click', () => addDefectRecord());
+  document.getElementById('defects-print').addEventListener('click', () => window.print());
+  document.getElementById('defects-combine-pdf').addEventListener('click', () => buildDefectsCombinedPdf());
+  document.getElementById('defects-filter').addEventListener('change', e => {
+    defectsFilter = e.target.value;
+    renderDefectsRegister();
+  });
+  document.getElementById('defect-modal-close').addEventListener('click', () => closeDefectModal());
+  document.getElementById('defect-delete').addEventListener('click', () => {
+    const rec = currentDefect();
+    if (!rec) return;
+    if (!confirm(`Delete "${rec.refNo}"? This cannot be undone.`)) return;
+    rec.photos.forEach(p => { DefectPhotoStore.remove(p.fileKey).catch(() => {}); delete _defectPhotoUrlCache[p.fileKey]; });
+    state.defects.splice(state.defects.indexOf(rec), 1);
+    scheduleSave();
+    closeDefectModal();
+  });
+  document.getElementById('defect-print').addEventListener('click', () => window.print());
+  document.getElementById('defect-name').addEventListener('input', e => {
+    const rec = currentDefect(); if (!rec) return;
+    rec.name = e.target.value;
+    document.getElementById('defect-modal-title').textContent = rec.name || 'New Defect';
+    renderDefectDoc(rec);
+    scheduleSave();
+  });
+  document.getElementById('defect-date').addEventListener('input', e => {
+    const rec = currentDefect(); if (!rec) return;
+    rec.date = e.target.value;
+    renderDefectDoc(rec);
+    scheduleSave();
+  });
+  document.getElementById('defect-location').addEventListener('input', e => {
+    const rec = currentDefect(); if (!rec) return;
+    rec.location = e.target.value;
+    renderDefectDoc(rec);
+    scheduleSave();
+  });
+  document.getElementById('defect-description').addEventListener('input', e => {
+    const rec = currentDefect(); if (!rec) return;
+    rec.description = e.target.value;
+    renderDefectDoc(rec);
+    scheduleSave();
+  });
+  document.getElementById('defect-status').addEventListener('change', e => {
+    const rec = currentDefect(); if (!rec) return;
+    rec.status = e.target.value;
+    renderDefectDoc(rec);
+    scheduleSave();
+  });
+  const defectPhotoDropzone = document.getElementById('defect-photo-dropzone');
+  const defectPhotoFileInput = document.getElementById('defect-photo-file-input');
+  defectPhotoDropzone.addEventListener('click', () => defectPhotoFileInput.click());
+  defectPhotoDropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); defectPhotoFileInput.click(); } });
+  defectPhotoFileInput.addEventListener('change', e => {
+    const rec = currentDefect(); if (!rec) return;
+    addDefectPhotoFiles(rec, e.target.files, () => { renderDefectPhotos(rec); renderDefectDoc(rec); });
+    e.target.value = '';
+  });
+  defectPhotoDropzone.addEventListener('dragover', e => { e.preventDefault(); defectPhotoDropzone.classList.add('dragover'); });
+  defectPhotoDropzone.addEventListener('dragleave', () => defectPhotoDropzone.classList.remove('dragover'));
+  defectPhotoDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    defectPhotoDropzone.classList.remove('dragover');
+    const rec = currentDefect(); if (!rec) return;
+    if (e.dataTransfer.files.length) addDefectPhotoFiles(rec, e.dataTransfer.files, () => { renderDefectPhotos(rec); renderDefectDoc(rec); });
+  });
+
   document.getElementById('tab-site-diary').addEventListener('click', () => switchTab('site-diary'));
   document.getElementById('site-diary-prev-month').addEventListener('click', () => shiftSiteDiaryMonth(-1));
   document.getElementById('site-diary-next-month').addEventListener('click', () => shiftSiteDiaryMonth(1));
@@ -32072,6 +32630,7 @@ const TAB_META = {
   'health-safety': { title: 'Health & Safety', sub: 'Task Analysis (TA), Safe Work Method Statement (SWMS) and Near Miss / Incident / Accident registers, plus other Health & Safety sub-tools over time.' },
   'site-diary': { title: 'Site Diary', sub: 'Daily record of subcontractors onsite, weather, deliveries, additional/variation work, programme delays and incidents.' },
   completion: { title: 'Completion', sub: 'Documents required to complete and hand over the project — Producer Statements, warranties, O&M manuals, Certificates of Compliance and the like.' },
+  defects: { title: 'Defects', sub: 'Register of defects found on site — reference, location, photos and status, closed out over the life of the project.' },
   directory: { title: 'Directory', sub: 'Companies and contacts on file, reused across every project.' },
   timesheet: { title: 'Timesheet', sub: 'Log your own weekly hours against the projects you\'re working on, or against Overhead.' },
   'project-directory': { title: 'Project Directory', sub: 'Contacts matched to trades from the Trade Summary.' },
@@ -32145,6 +32704,13 @@ function switchTab(tab){
   document.body.classList.remove('photo-album-active');
   document.getElementById('view-photo-album').style.display = 'none';
   closePhotoViewer(true);
+  // Same reset pattern as every other detail view above — closing the
+  // Defect modal on tab switch, not via closeDefectModal() itself, since
+  // that function also re-renders the Defects register, which is
+  // redundant here (renderDefectsRegister() below already covers it).
+  defectModalIndex = null;
+  document.body.classList.remove('defect-modal-active');
+  document.getElementById('defect-modal').style.display = 'none';
   document.getElementById('view-overview').style.display = tab === 'overview' ? '' : 'none';
   document.getElementById('view-analysis').style.display = tab === 'analysis' ? '' : 'none';
   document.getElementById('view-rates-library').style.display = tab === 'rates-library' ? '' : 'none';
@@ -32166,6 +32732,7 @@ function switchTab(tab){
   document.getElementById('view-site-diary').style.display = tab === 'site-diary' ? '' : 'none';
   document.getElementById('view-completion').style.display = tab === 'completion' ? '' : 'none';
   setCompletionPrintOrientation(tab === 'completion');
+  document.getElementById('view-defects').style.display = tab === 'defects' ? '' : 'none';
   document.getElementById('view-directory').style.display = tab === 'directory' ? '' : 'none';
   document.getElementById('view-timesheet').style.display = tab === 'timesheet' ? '' : 'none';
   document.getElementById('view-project-directory').style.display = tab === 'project-directory' ? '' : 'none';
@@ -32182,7 +32749,7 @@ function switchTab(tab){
   clientRefLine.textContent = '';
   clientRefLine.style.display = 'none';
 
-  ['overview', 'gantt2', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'directory', 'project-directory', 'cdrawings', 'photos', 'admin'].forEach(t => {
+  ['overview', 'gantt2', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'defects', 'directory', 'project-directory', 'cdrawings', 'photos', 'admin'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
   // The Tendering sidebar entry covers five sub-tabs (analysis/gantt/drawings/summary/
@@ -32215,6 +32782,7 @@ function switchTab(tab){
   else if (tab === 'health-safety') switchHsSection(hsSection || 'ta');
   else if (tab === 'site-diary') renderSiteDiaryCalendar();
   else if (tab === 'completion') switchCompletionSection(completionSection || 'schedule');
+  else if (tab === 'defects') renderDefectsRegister();
   else if (tab === 'directory') renderDirectory();
   else if (tab === 'timesheet') openTimesheetTab();
   else if (tab === 'project-directory') renderProjectDirectory();
@@ -32253,6 +32821,7 @@ function renderAll(){
   await PhotoStore.init();
   await HsDocStore.init();
   await IncidentPhotoStore.init();
+  await DefectPhotoStore.init();
   await CompletionDocStore.init();
   await CompletionScheduleDocStore.init();
   await CompletionContractDocStore.init();
