@@ -1931,12 +1931,14 @@
      single-grey-box treatment here, including each section's own .note
      paragraph inside the box. */
   #view-hs-detail .hs-section,
-  #view-hs-incident-detail .hs-section{
+  #view-hs-incident-detail .hs-section,
+  #defect-modal .hs-section{
     background:var(--paper);border:1px solid var(--line);border-radius:10px;
     padding:16px 16px 14px;margin:16px 0;
   }
   #view-hs-detail .hs-section h4.groupline,
-  #view-hs-incident-detail .hs-section h4.groupline{margin:0 0 10px;border-bottom:none;padding-bottom:0;}
+  #view-hs-incident-detail .hs-section h4.groupline,
+  #defect-modal .hs-section h4.groupline{margin:0 0 10px;border-bottom:none;padding-bottom:0;}
   #view-hs-detail .hs-section > .note,
   #view-hs-incident-detail .hs-section > .note{margin:0 0 10px;}
   #view-hs-detail .hs-section .scrollx,
@@ -2696,6 +2698,7 @@
   #qa-doc-sheet{display:none;}
   #hs-doc-sheet{display:none;}
   #hsi-doc-sheet{display:none;}
+  #defect-doc-sheet{display:none;}
   /* The Subcontract Agreement particulars form is long enough on its own —
      showing the printable schedule inline underneath it as well just added
      scrolling with no real benefit, so it's hidden on screen the same way
@@ -8496,43 +8499,47 @@
       </div>
       <div class="tp-body">
         <div id="defect-form-fields" class="no-print">
-          <div class="subdet-field">
-            <label class="lbl-block">Reference</label>
-            <div class="readout" id="defect-ref-readout"></div>
+          <div class="vo-report-bar">
+            <div class="vo-report-field">
+              <label class="lbl-block">Reference</label>
+              <div class="readout" id="defect-ref-readout"></div>
+            </div>
+            <div class="vo-report-field">
+              <label class="lbl-block">Brief Name</label>
+              <input type="text" id="defect-name" placeholder="e.g. Cracked tile, Unit 4 bathroom">
+            </div>
+            <div class="vo-report-field">
+              <label class="lbl-block">Date</label>
+              <input type="date" id="defect-date">
+            </div>
+            <div class="vo-report-field">
+              <label class="lbl-block">Location</label>
+              <input type="text" id="defect-location" placeholder="e.g. Level 2, Unit 4 bathroom">
+            </div>
+            <div class="vo-report-field">
+              <label class="lbl-block">Status</label>
+              <select id="defect-status">
+                <option value="Open">Open</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
           </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Brief Name</label>
-            <input type="text" id="defect-name" placeholder="e.g. Cracked tile, Unit 4 bathroom">
+          <div class="vo-report-bar">
+            <div class="vo-report-field" style="min-width:100%;">
+              <label class="lbl-block">Description</label>
+              <textarea id="defect-description" rows="4" placeholder="What's wrong, and what needs to happen to fix it…"></textarea>
+            </div>
           </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Date</label>
-            <input type="date" id="defect-date">
-          </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Location</label>
-            <input type="text" id="defect-location" placeholder="e.g. Level 2, Unit 4 bathroom">
-          </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Description</label>
-            <textarea id="defect-description" rows="4" placeholder="What's wrong, and what needs to happen to fix it…"></textarea>
-          </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Status</label>
-            <select id="defect-status">
-              <option value="Open">Open</option>
-              <option value="Closed">Closed</option>
-            </select>
-          </div>
-          <div class="subdet-field">
-            <label class="lbl-block">Photos</label>
+          <div class="hs-section">
+            <h4 class="groupline">Photos</h4>
             <div id="defect-photo-dropzone" class="comm-dropzone" tabindex="0">Drag &amp; drop photos here, or click to browse / take a photo</div>
             <input type="file" id="defect-photo-file-input" accept="image/*" multiple style="display:none;">
             <div id="defect-photos-empty" style="color:var(--muted);font-style:italic;display:none;margin-top:10px;">No photos attached yet.</div>
             <div id="defect-photos-grid" class="photo-items-grid"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-            <button class="iconbtn" id="defect-delete" type="button" style="color:var(--red);">Delete Defect</button>
-            <button class="btn btn-teal" id="defect-print" type="button">Print / Save as PDF</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <button class="btn" id="defect-delete" type="button" style="background:transparent;border:1px solid var(--red);color:var(--red);width:auto;flex:none;">Delete Defect</button>
+            <button class="btn btn-teal" id="defect-print" type="button" style="width:auto;flex:none;">Print / Save as PDF</button>
           </div>
         </div>
         <div id="defect-doc-sheet" class="letter-sheet"></div>
