@@ -1,20 +1,26 @@
 /* Squared Field service worker.
-   Scope: caches ONLY the app shell (this page's own HTML/CSS/JS/icons) so the
-   UI itself loads with no connectivity — someone standing in a basement with
-   no signal should still be able to open the app and see "3 photos pending
-   upload", not a blank white screen.
+   Only caches the manifest + icons (so the installed home-screen icon's
+   name/appearance still work without a live connection) — it deliberately
+   does NOT cache or intercept mobile.html itself, or anything else.
 
-   Deliberately does NOT cache or intercept anything else — every request to
-   Supabase (auth, project data, photo uploads) is a different origin anyway
-   and passes straight through untouched. If a Supabase call fails because
-   there's genuinely no connection, that failure is exactly what tells
-   mobile.html's own code to fall back to the local IndexedDB queue instead —
-   a service worker silently caching or retrying those calls would hide that
-   signal and risk serving stale project data as if it were current. */
+   Why: iOS's standalone "Add to Home Screen" mode has real, well-documented
+   flakiness around service workers intercepting the page's own navigation
+   request — it can get stuck running a stale worker independently of what's
+   actually being served on the server, which is what caused Safari's
+   "Response served by the service worker has redirections" error to keep
+   resurfacing even after the underlying code was confirmed fixed. Given
+   most sites have solid 4G/5G coverage in practice, reliably opening the
+   app matters more than instant offline loading — so mobile.html's own
+   navigation is no longer intercepted at all; it always goes straight to
+   the network, exactly like a normal, non-PWA page load. If there's
+   genuinely no signal, the page just won't load, same as any other site.
 
-const SHELL_CACHE = 'squared-field-shell-v1';
+   Everything else (Supabase auth, project data, photo uploads) was already,
+   and remains, completely untouched by this service worker — those are a
+   different origin and pass straight through either way. */
+
+const SHELL_CACHE = 'squared-field-shell-v2';
 const SHELL_ASSETS = [
-  '/mobile.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
@@ -30,6 +36,8 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(names =>
+      // Also clears out the old v1 cache (which held a cached copy of
+      // mobile.html from the previous approach) on everyone's next visit.
       Promise.all(names.filter(n => n !== SHELL_CACHE).map(n => caches.delete(n)))
     )
   );
@@ -37,42 +45,30 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Never touch navigation requests (the page load itself) — see the
+  // comment at the top of this file for why.
+  if (event.request.mode === 'navigate') return;
+
   const url = new URL(event.request.url);
 
-  // Only ever handle same-origin GETs for the exact shell assets above.
-  // Everything else (Supabase, any other path) is left completely alone —
-  // returning without calling event.respondWith() means the browser handles
-  // the request normally, as if this service worker didn't exist.
+  // Only ever handle same-origin GETs for the manifest/icons above.
+  // Everything else is left completely alone — returning without calling
+  // event.respondWith() means the browser handles the request normally, as
+  // if this service worker didn't exist.
   if (event.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
   if (!SHELL_ASSETS.includes(url.pathname)) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
-      // event.request.mode is 'navigate' for a top-level page load like this
-      // one, and browsers spec-mandate redirect:'manual' for any fetch() of
-      // a navigation-mode Request. If /mobile.html is ever redirected for
-      // ANY reason (a Cloudflare host/HTTPS normalization, a redirect rule
-      // elsewhere on the zone, etc.), fetch(event.request) does not follow
-      // it — it resolves to an opaque 'opaqueredirect' placeholder instead
-      // of the real page. Handing that back via respondWith() on a
-      // navigation is exactly what Safari's "Response served by the service
-      // worker has redirections" error is complaining about, even when the
-      // underlying page is otherwise completely fine.
-      //
-      // Fetching by plain URL string here (not the original Request object)
-      // avoids this: a plain-URL fetch() defaults to redirect:'follow', so
-      // any redirect gets fully resolved into the real final page before we
-      // ever see the response — nothing "manual" or opaque about it.
       const network = fetch(event.request.url)
         .then(resp => {
-          // Keep the cached shell fresh whenever we do have a connection.
           if (resp && resp.ok) {
             caches.open(SHELL_CACHE).then(cache => cache.put(event.request, resp.clone()));
           }
           return resp;
         })
-        .catch(() => cached); // offline — fall back to whatever's cached
+        .catch(() => cached);
       return cached || network;
     })
   );
