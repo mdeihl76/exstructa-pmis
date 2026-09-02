@@ -13306,7 +13306,8 @@ function renderTimesheet(){
   body.innerHTML = '';
   timesheetRowTotalEls = new Map();
 
-  timesheetCache.lines.forEach(line => {
+  const numLines = timesheetCache.lines.length;
+  timesheetCache.lines.forEach((line, lineIdx) => {
     const tr = document.createElement('tr');
 
     const tdProj = document.createElement('td');
@@ -13339,11 +13340,21 @@ function renderTimesheet(){
     }
     tr.appendChild(tdProj);
 
-    DAYS.forEach(day => {
+    // Tab order down the project column for the current day, THEN across to
+    // the next day — matches how someone actually fills this sheet in
+    // (finish everyone's Monday, then move to Tuesday) rather than the
+    // browser's plain top-to-bottom-DOM-order default, which tabbed across
+    // a single row (i.e. one project's whole week) before dropping to the
+    // next project. Explicit tabindex forces this; every other control in
+    // this table (project dropdowns, delete buttons) is left at the
+    // default tabindex=0, so they simply come after all the day cells in
+    // tab order — nobody routinely tabs through those anyway.
+    DAYS.forEach((day, dayIdx) => {
       const td = document.createElement('td'); td.className = 'num';
       const inp = document.createElement('input');
       inp.type = 'number'; inp.step = '0.25'; inp.min = '0'; inp.className = 'num ip-compact-input';
       inp.disabled = locked;
+      inp.tabIndex = dayIdx * numLines + lineIdx + 1;
       inp.value = line[day] ? Number(line[day]).toFixed(2) : '';
       inp.addEventListener('input', e => {
         line[day] = parseFloat(e.target.value) || 0;
@@ -32820,7 +32831,7 @@ function switchTab(tab){
   clientRefLine.textContent = '';
   clientRefLine.style.display = 'none';
 
-  ['overview', 'gantt2', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'defects', 'directory', 'project-directory', 'cdrawings', 'photos', 'admin'].forEach(t => {
+  ['overview', 'gantt2', 'budget', 'cashflow', 'claim', 'variations', 'subcontractors', 'purchasing', 'communications', 'meetings', 'qa', 'health-safety', 'site-diary', 'completion', 'defects', 'directory', 'timesheet', 'project-directory', 'cdrawings', 'photos', 'admin'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
   // The Tendering sidebar entry covers five sub-tabs (analysis/gantt/drawings/summary/
