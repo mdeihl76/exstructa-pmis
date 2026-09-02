@@ -1066,6 +1066,22 @@
     font-size:13px;
   }
   .margin-line .mlabel{font-weight:600;min-width:236px;flex-shrink:0;}
+  /* Trade Summary's three % inputs (Internal Contingency, Contractors Margin,
+     Contractors Contingency) had no styling of their own at all — just a
+     bare <input>, so they fell back to the browser's plain white input
+     background while text color still followed --ink. Fine in light theme
+     (dark text on that white box), but in dark theme --ink flips to a
+     near-white colour while the background stayed hard-coded white from the
+     browser default, making the text unreadable. Same transparent-background
+     convention as .meta-field input above — the input just shows whatever
+     surface it's sitting on (panel-card) in either theme, so there's no
+     independent background colour to get out of sync with the text colour. */
+  .margin-line input[type="text"]{
+    width:56px;text-align:right;font-family:var(--mono);font-size:13px;
+    background:transparent;color:var(--ink);border:1px solid var(--line);
+    border-radius:5px;padding:4px 6px;
+  }
+  .margin-line input[type="text"]:focus{outline:none;border-color:var(--accent);}
   .margin-code-badge{
     font-family:var(--mono);font-weight:600;font-size:11px;color:var(--muted);
     border:1px solid var(--line);border-radius:5px;padding:2px 6px;vertical-align:middle;
