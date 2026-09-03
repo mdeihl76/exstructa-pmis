@@ -1309,7 +1309,7 @@
      wrap onto two lines here — the only way to actually let the column narrow. */
   #budget-table th.budget-fc-col, #budget-table td.budget-fc-col{padding-left:20px;}
   #budget-table th.budget-fc-col{white-space:normal;line-height:1.3;}
-  /* Fourteen columns (up from thirteen, after adding Budget Transfer) makes width
+  /* Fifteen columns (Budget Transfer, then Rev44's Labour) makes width
      the scarce resource, so the Budget header row gets its own smaller font and is
      allowed to wrap onto two lines — table.data th's base 9.5px/nowrap is sized for
      shorter, less crowded headers elsewhere and would force the table wider than
@@ -3225,8 +3225,8 @@
     #view-budget .scrollx{overflow-x:visible;}
     #budget-table{table-layout:fixed;width:100%;}
     #budget-table td, #budget-table th{padding:4px 5px;font-size:9.5px;}
-    /* Fourteen columns now (Budget Transfer added), so the header row gets a
-       smaller font than the body -- same reasoning as the on-screen rule -- and
+    /* Fifteen columns now (Budget Transfer, then Rev44's Labour), so the header
+       row gets a smaller font than the body -- same reasoning as the on-screen rule -- and
        is allowed to wrap onto two lines rather than force every column back to
        a width wide enough for its label on one line. */
     #budget-table th{font-size:7.5px;white-space:normal;line-height:1.2;}
@@ -3237,22 +3237,27 @@
        win over stylesheet rules regardless of selector specificity — without it
        these print-mode percentages are silently ignored and the table falls back
        to the screen pixel widths, which don't fit a landscape print page and
-       overflow past the right margin. Widths below sum to 100% across the 13
-       visible columns (the 14th, actions, is display:none via :last-child above). */
-    #budget-table th:nth-child(1), #budget-table td:nth-child(1){width:3% !important;}
-    #budget-table th:nth-child(2), #budget-table td:nth-child(2){width:8% !important;}
-    #budget-table th:nth-child(3), #budget-table td:nth-child(3){width:12% !important;}
+       overflow past the right margin. Widths below sum to 100% across the 14
+       visible columns (the 15th, actions, is display:none via :last-child above).
+       Rev44 added the Labour column at position 9, so every column from 9 onward
+       shifted right by one and a few percentages were trimmed to keep the total
+       at exactly 100% — if a column is ever added or removed here again, re-check
+       that these still sum to 100 or the table overflows the landscape page. */
+    #budget-table th:nth-child(1), #budget-table td:nth-child(1){width:2% !important;}
+    #budget-table th:nth-child(2), #budget-table td:nth-child(2){width:7% !important;}
+    #budget-table th:nth-child(3), #budget-table td:nth-child(3){width:10% !important;}
     #budget-table th:nth-child(4), #budget-table td:nth-child(4){width:7% !important;}
     #budget-table th:nth-child(5), #budget-table td:nth-child(5){width:7% !important;}
     #budget-table th:nth-child(6), #budget-table td:nth-child(6){width:7% !important;}
-    #budget-table th:nth-child(7), #budget-table td:nth-child(7){width:9% !important;}
+    #budget-table th:nth-child(7), #budget-table td:nth-child(7){width:8% !important;}
     #budget-table th:nth-child(8), #budget-table td:nth-child(8){width:7% !important;}
     #budget-table th:nth-child(9), #budget-table td:nth-child(9){width:7% !important;}
     #budget-table th:nth-child(10), #budget-table td:nth-child(10){width:7% !important;}
-    #budget-table th:nth-child(11), #budget-table td:nth-child(11){width:10% !important;}
+    #budget-table th:nth-child(11), #budget-table td:nth-child(11){width:7% !important;}
     #budget-table th.budget-fc-col, #budget-table td.budget-fc-col{padding-left:5px;white-space:nowrap;}
-    #budget-table th:nth-child(12), #budget-table td:nth-child(12){width:7% !important;}
-    #budget-table th:nth-child(13), #budget-table td:nth-child(13){width:9% !important;}
+    #budget-table th:nth-child(12), #budget-table td:nth-child(12){width:9% !important;}
+    #budget-table th:nth-child(13), #budget-table td:nth-child(13){width:7% !important;}
+    #budget-table th:nth-child(14), #budget-table td:nth-child(14){width:8% !important;}
 
     /* Cash Flow Forecast print: row spacing tightened further — the summary
        and monthly-forecast table cells were already tightened above, but the
@@ -5345,12 +5350,12 @@
         <button class="btn btn-teal" id="budget-print" type="button" style="flex:none;">Print / Save as PDF</button>
       </div>
       <div class="scrollx"><table class="data" id="budget-table">
-        <thead><tr><th style="width:30px;">No.</th><th style="width:78px;">Cost Code</th><th style="width:120px;">Trade</th><th class="num" style="width:96px;">Budget</th><th class="num" style="width:96px;">Approved VOs</th><th class="num" style="width:96px;">Budget Transfer</th><th class="num" style="width:120px;">Revised Budget</th><th class="num" style="width:96px;">Committed</th><th class="num" style="width:96px;">Sub VOs</th><th class="num" style="width:96px;">Pending POs</th><th class="num budget-fc-col" style="width:100px;">FC Complete</th><th class="num" style="width:92px;">Total FC</th><th class="num" style="width:96px;">Gain/Loss</th><th style="width:32px;"></th></tr></thead>
+        <thead><tr><th style="width:30px;">No.</th><th style="width:78px;">Cost Code</th><th style="width:120px;">Trade</th><th class="num" style="width:96px;">Budget</th><th class="num" style="width:96px;">Approved VOs</th><th class="num" style="width:96px;">Budget Transfer</th><th class="num" style="width:120px;">Revised Budget</th><th class="num" style="width:96px;">Committed</th><th class="num" style="width:96px;">Labour</th><th class="num" style="width:96px;">Sub VOs</th><th class="num" style="width:96px;">Pending POs</th><th class="num budget-fc-col" style="width:100px;">FC Complete</th><th class="num" style="width:92px;">Total FC</th><th class="num" style="width:96px;">Gain/Loss</th><th style="width:32px;"></th></tr></thead>
         <tbody id="budget-body"></tbody>
         <tfoot id="budget-foot"></tfoot>
       </table></div>
       <button class="addbtn" id="add-budget-line">+ Add line item</button>
-      <div class="note">Budget, Approved VOs, Revised Budget, Committed Cost, Subcontract VOs and Pending POs are all automatic figures: Budget from each trade's value on Trade Summary (or the Preliminaries &amp; General total); Committed Cost from Engaged/Complete subcontractors' contract sums plus closed Purchase Orders' invoiced amounts against the matching cost code; Subcontract VOs from that subcontractor's approved variations; Pending POs from the ordered value of open Purchase Orders against the matching cost code (see the Purchasing tab). <strong>Budget Transfer</strong> is the net of every completed transfer against that cost code — the only way money moves from one cost code to another; use the "Budget Transfer" button above to record one. <strong>Forecast to Complete</strong> is the only figure you set by hand — click its value to open that cost code's own Item / Description / Duration / Qty / Rate worksheet and build it up there; leave the worksheet empty to keep the automatic figure. Use "+ Add line item" for costs that don't come from a priced trade. Trade names and cost codes are fixed here — set them on Tender Analysis or the Preliminaries &amp; General worksheet. Click "Lock Budget" once pricing is finalised to prevent further changes (Forecast to Complete and Budget Transfer stay available); unlocking again needs the project PIN.</div>
+      <div class="note">Budget, Approved VOs, Revised Budget, Committed Cost, Labour, Subcontract VOs and Pending POs are all automatic figures: Budget from each trade's value on Trade Summary (or the Preliminaries &amp; General total); Committed Cost from Engaged/Complete subcontractors' contract sums plus closed Purchase Orders' invoiced amounts against the matching cost code; <strong>Labour</strong> from approved Timesheet hours booked to this project against the matching cost code, costed at each person's charge-out rate as it stood when their week was approved (see Admin &rarr; Timesheet Approvals and Charge-Out Rates); Subcontract VOs from that subcontractor's approved variations; Pending POs from the ordered value of open Purchase Orders against the matching cost code (see the Purchasing tab). <strong>Budget Transfer</strong> is the net of every completed transfer against that cost code — the only way money moves from one cost code to another; use the "Budget Transfer" button above to record one. <strong>Forecast to Complete</strong> is the only figure you set by hand — click its value to open that cost code's own Item / Description / Duration / Qty / Rate worksheet and build it up there; leave the worksheet empty to keep the automatic figure. Use "+ Add line item" for costs that don't come from a priced trade. Trade names and cost codes are fixed here — set them on Tender Analysis or the Preliminaries &amp; General worksheet. Click "Lock Budget" once pricing is finalised to prevent further changes (Forecast to Complete and Budget Transfer stay available); unlocking again needs the project PIN.</div>
     </div>
   </div>
 
@@ -7739,9 +7744,9 @@
            costing data, not something every staff member needs to see just
            to log their own hours. -->
       <div class="admin-section" id="admin-section-rates" style="display:none;">
-        <p class="field-note" style="margin:0 0 14px;">The standard hourly rate for each job-costed discipline in your organisation — used to cost everyone's approved Timesheet hours onto the projects (and Overhead) they're allocated to. Assign each staff member to one of these disciplines on the Users tab above.</p>
+        <p class="field-note" style="margin:0 0 14px;">The standard hourly rate for each job-costed discipline in your organisation — used to cost everyone's approved Timesheet hours onto the projects (and Overhead) they're allocated to. Assign each staff member to one of these disciplines on the Users tab above. <strong>Cost Code</strong> is where that discipline's approved hours land on each project's Cost Control worksheet — 1000 (Site Supervision &amp; Administration) for everyone by default. The rate is frozen onto each timesheet week at the moment it's approved, so changing a rate here never restates a week that's already been signed off.</p>
         <div class="scrollx"><table class="data" id="admin-rates-table">
-          <thead><tr><th>Discipline</th><th class="num" style="width:140px;">Hourly Rate</th><th style="width:60px;"></th></tr></thead>
+          <thead><tr><th>Discipline</th><th class="num" style="width:140px;">Hourly Rate</th><th style="width:120px;">Cost Code</th><th style="width:60px;"></th></tr></thead>
           <tbody id="admin-rates-body"></tbody>
         </table></div>
         <button class="addbtn" id="admin-add-rate">+ New Discipline</button>
@@ -7761,7 +7766,7 @@
           <button class="subdet-nav-btn" data-tsafilter="approved" type="button">Approved</button>
         </div>
         <div class="scrollx"><table class="data" id="admin-approvals-table">
-          <thead><tr><th>Person</th><th>Week</th><th class="num" style="width:90px;">Total Hrs</th><th style="width:110px;">Status</th><th style="width:220px;"></th></tr></thead>
+          <thead><tr><th>Person</th><th>Week</th><th class="num" style="width:90px;">Total Hrs</th><th style="width:150px;">Rate / Cost Code</th><th style="width:110px;">Status</th><th style="width:220px;"></th></tr></thead>
           <tbody id="admin-approvals-body"></tbody>
         </table></div>
       </div>
@@ -7773,9 +7778,10 @@
        hours here regardless of Permission Group (same "always visible"
        treatment as Directory — everyone needs it, it isn't a project-scoped
        tool). One week at a time; a fixed Overhead row alongside as many
-       project rows as the person needs, Mon–Sun hours each. Stage 1 only
-       (see timesheet_migration.sql's header comment): Draft → Submit, no
-       approval queue and no Cost Control link yet — those are Stage 2. -->
+       project rows as the person needs, Mon–Sun hours each. Draft → Submit
+       (Stage 1), admin approval queue (Stage 2, see the Admin Tool), and
+       costing approved hours out to Cost Control (Stage 3, Rev44 — see
+       timesheet_costing_migration.sql and labourByCostCode()) are all built. -->
   <div id="view-timesheet" style="display:none;">
     <div class="panel-card">
       <h3 style="margin-bottom:4px;">Timesheet</h3>
@@ -12787,13 +12793,13 @@ async function loadAndRenderAdminChargeRates(){
   try{
     const { data, error } = await supabaseClient
       .from('organisation_charge_rates')
-      .select('id, discipline, hourly_rate')
+      .select('id, discipline, hourly_rate, cost_code')
       .eq('organisation_id', CURRENT_ORG_ID)
       .order('discipline');
     if (error) throw error;
     adminRatesCache = data || [];
   }catch(e){
-    body.innerHTML = `<tr><td colspan="3" style="color:var(--red);">Could not load Charge-Out Rates — has timesheet_migration.sql been run yet? (${escapeHtml(e.message || String(e))})</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" style="color:var(--red);">Could not load Charge-Out Rates — has timesheet_migration.sql (and, for the Cost Code column, timesheet_costing_migration.sql) been run yet? (${escapeHtml(e.message || String(e))})</td></tr>`;
     return;
   }
   renderAdminRatesTable();
@@ -12803,7 +12809,7 @@ function renderAdminRatesTable(){
   const body = document.getElementById('admin-rates-body');
   body.innerHTML = '';
   if (!adminRatesCache.length){
-    body.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-style:italic;">No disciplines set up yet — click "+ New Discipline" below to add your first one (e.g. Site Manager, Contracts Administrator, QS, Director).</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" style="color:var(--muted);font-style:italic;">No disciplines set up yet — click "+ New Discipline" below to add your first one (e.g. Site Manager, Contracts Administrator, QS, Director).</td></tr>`;
     return;
   }
   adminRatesCache.forEach(r => {
@@ -12823,6 +12829,23 @@ function renderAdminRatesTable(){
     rateInp.addEventListener('change', () => saveAdminRate(r.id, { hourly_rate: parseFloat(rateInp.value) || 0 }));
     tdRate.appendChild(rateInp);
     tr.appendChild(tdRate);
+
+    /* Rev44: where this discipline's approved hours land on Cost Control.
+       Defaults to 1000 (Site Supervision & Administration on the standard P&G
+       template) for every discipline — change it only if a discipline's time
+       genuinely belongs somewhere else. A free text field rather than a
+       dropdown because cost codes live on each project's own P&G worksheet,
+       and this table is organisation-wide: there's no single project's code
+       list to offer here. */
+    const tdCode = document.createElement('td');
+    const codeInp = document.createElement('input');
+    codeInp.type = 'text';
+    codeInp.value = r.cost_code === undefined || r.cost_code === null ? '' : String(r.cost_code);
+    codeInp.placeholder = '1000';
+    codeInp.title = 'The Cost Control cost code this discipline\'s approved timesheet hours are charged to on every project. Leave as 1000 unless you have a reason to split it out.';
+    codeInp.addEventListener('change', () => saveAdminRate(r.id, { cost_code: codeInp.value.trim() || '1000' }));
+    tdCode.appendChild(codeInp);
+    tr.appendChild(tdCode);
 
     const tdDel = document.createElement('td');
     const del = document.createElement('button');
@@ -12883,12 +12906,29 @@ async function loadAndRenderAdminApprovals(){
   body.innerHTML = `<tr><td colspan="5" style="color:var(--muted);font-style:italic;">Loading…</td></tr>`;
   const statusFilter = adminApprovalsFilter === 'pending' ? 'submitted' : 'approved';
   try{
-    const { data: tsData, error: tsErr } = await supabaseClient
+    /* The costed_* columns are Rev44 additions. PostgREST rejects the whole
+       query if a selected column doesn't exist, so asking for them outright
+       would break the entire approvals queue on a database where
+       timesheet_costing_migration.sql hasn't been run yet. Try the full select,
+       and fall back to the Rev43 column list if it's rejected — same fail-open
+       convention as the Directory and Job Number features. */
+    const TS_COLS_COSTED = 'id, user_id, week_start, status, lines, submitted_at, admin_note, reviewed_at, costed_rate, costed_discipline, costed_cost_code';
+    const TS_COLS_BASE = 'id, user_id, week_start, status, lines, submitted_at, admin_note, reviewed_at';
+    let { data: tsData, error: tsErr } = await supabaseClient
       .from('organisation_timesheets')
-      .select('id, user_id, week_start, status, lines, submitted_at, admin_note, reviewed_at')
+      .select(TS_COLS_COSTED)
       .eq('organisation_id', CURRENT_ORG_ID)
       .eq('status', statusFilter)
       .order('week_start', { ascending: false });
+    if (tsErr){
+      console.warn('loadAndRenderAdminApprovals: costed_* columns not present yet (has timesheet_costing_migration.sql been run?) — falling back to the pre-Rev44 column list.', tsErr);
+      ({ data: tsData, error: tsErr } = await supabaseClient
+        .from('organisation_timesheets')
+        .select(TS_COLS_BASE)
+        .eq('organisation_id', CURRENT_ORG_ID)
+        .eq('status', statusFilter)
+        .order('week_start', { ascending: false }));
+    }
     if (tsErr) throw tsErr;
     // Joined client-side against profiles (same convention as
     // loadAndRenderAdminUsers() above) rather than an embedded select,
@@ -12897,15 +12937,41 @@ async function loadAndRenderAdminApprovals(){
     const userIds = [...new Set((tsData || []).map(t => t.user_id))];
     const profilesById = Object.create(null);
     if (userIds.length){
+      // Rev44: discipline_id comes back too, so the approval queue can resolve
+      // each person's charge-out rate and cost code BEFORE their week is
+      // approved — both to show it in the queue (so an admin can see at a
+      // glance that someone has no rate set, rather than discovering it later
+      // as a missing figure on Cost Control) and to snapshot it onto the row
+      // at the moment of approval (see approveAdminTimesheet).
       const { data: profData, error: profErr } = await supabaseClient
-        .from('profiles').select('id, email').in('id', userIds);
+        .from('profiles').select('id, email, discipline_id').in('id', userIds);
       if (profErr) throw profErr;
       (profData || []).forEach(p => { profilesById[p.id] = p; });
     }
-    adminApprovalsCache = (tsData || []).map(t => ({
-      ...t,
-      personEmail: (profilesById[t.user_id] || {}).email || '(person no longer in this organisation)'
-    }));
+    // Rates are fetched separately and fail open — cost_code is a Rev44 column,
+    // so on a database where timesheet_costing_migration.sql hasn't been run the
+    // select errors, the Rate column reads "not set up", and approving still
+    // works exactly as it did in Rev43 (just without a cost snapshot).
+    const ratesById = Object.create(null);
+    try{
+      const { data: rateData, error: rateErr } = await supabaseClient
+        .from('organisation_charge_rates').select('id, discipline, hourly_rate, cost_code').eq('organisation_id', CURRENT_ORG_ID);
+      if (rateErr) throw rateErr;
+      (rateData || []).forEach(r => { ratesById[r.id] = r; });
+    }catch(e){
+      console.warn('loadAndRenderAdminApprovals: charge-out rates with cost codes are not available yet (has timesheet_costing_migration.sql been run?).', e);
+    }
+    adminApprovalsCache = (tsData || []).map(t => {
+      const prof = profilesById[t.user_id] || {};
+      const rate = prof.discipline_id ? ratesById[prof.discipline_id] : null;
+      return {
+        ...t,
+        personEmail: prof.email || '(person no longer in this organisation)',
+        personRate: rate ? num(rate.hourly_rate) : null,
+        personDiscipline: rate ? (rate.discipline || '') : '',
+        personCostCode: rate ? String(rate.cost_code || '1000') : ''
+      };
+    });
   }catch(e){
     body.innerHTML = `<tr><td colspan="5" style="color:var(--red);">Could not load Timesheet Approvals — has timesheet_approvals_migration.sql been run yet? (${escapeHtml(e.message || String(e))})</td></tr>`;
     return;
@@ -12930,7 +12996,7 @@ function renderAdminApprovalsTable(){
     const msg = adminApprovalsFilter === 'pending'
       ? 'No timesheets waiting on approval right now.'
       : 'No approved timesheets yet.';
-    body.innerHTML = `<tr><td colspan="5" style="color:var(--muted);font-style:italic;">${msg}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" style="color:var(--muted);font-style:italic;">${msg}</td></tr>`;
     return;
   }
   adminApprovalsCache.forEach(t => {
@@ -12940,6 +13006,34 @@ function renderAdminApprovalsTable(){
     const tdPerson = document.createElement('td'); tdPerson.textContent = t.personEmail;
     const tdWeek = document.createElement('td'); tdWeek.textContent = fmtWeekLabel(t.week_start);
     const tdTotal = document.createElement('td'); tdTotal.className = 'num'; tdTotal.textContent = fmt2(total);
+
+    /* Rev44: what this week will cost (or, once approved, what it DID cost).
+       For a pending week this is the person's current discipline rate — the
+       rate that will be frozen onto the row the moment it's approved. For an
+       already-approved week it's the snapshot actually stored on that row, so
+       an old week keeps showing the rate it was costed at even after the
+       organisation's rates have moved on. A person with no discipline set
+       reads as a plain warning rather than a blank, because approving them
+       would otherwise put zero cost onto Cost Control with nothing to explain
+       why. */
+    const tdRate = document.createElement('td');
+    const isApproved = t.status === 'approved';
+    const shownRate = isApproved && t.costed_rate !== null && t.costed_rate !== undefined ? num(t.costed_rate) : t.personRate;
+    const shownCode = isApproved && t.costed_cost_code ? t.costed_cost_code : t.personCostCode;
+    const shownDisc = isApproved && t.costed_discipline ? t.costed_discipline : t.personDiscipline;
+    if (shownRate === null || shownRate === undefined || !shownCode){
+      tdRate.style.color = 'var(--red)';
+      tdRate.textContent = 'No discipline set';
+      tdRate.title = 'This person has no Timesheet discipline assigned, so there is no charge-out rate to cost their hours at. Set one on the Users tab (and give the discipline a rate on Charge-Out Rates) before approving, or their approved time will cost $0 on Cost Control.';
+    } else {
+      tdRate.textContent = money(shownRate) + '/hr → ' + shownCode;
+      tdRate.title = (shownDisc ? shownDisc + '. ' : '') +
+        (isApproved
+          ? 'Frozen when this week was approved — later changes to the charge-out rate do not restate it.'
+          : 'Current rate for this person\'s discipline. It will be frozen onto this week when you approve it.') +
+        ' Costs ' + money(shownRate * total) + ' in total for this week (Overhead hours excluded from any project).';
+    }
+
     const tdStatus = document.createElement('td');
     const badge = document.createElement('span');
     badge.className = 'badge ' + (t.status === 'approved' ? 'badge-good' : 'badge-warn');
@@ -12974,13 +13068,13 @@ function renderAdminApprovalsTable(){
       tdActions.appendChild(reopenBtn);
     }
 
-    tr.appendChild(tdPerson); tr.appendChild(tdWeek); tr.appendChild(tdTotal); tr.appendChild(tdStatus); tr.appendChild(tdActions);
+    tr.appendChild(tdPerson); tr.appendChild(tdWeek); tr.appendChild(tdTotal); tr.appendChild(tdRate); tr.appendChild(tdStatus); tr.appendChild(tdActions);
     body.appendChild(tr);
 
     if (adminApprovalsExpanded.has(t.id)){
       const detailTr = document.createElement('tr');
       const detailTd = document.createElement('td');
-      detailTd.colSpan = 5;
+      detailTd.colSpan = 6;
       detailTd.style.cssText = 'background:var(--line-soft);padding:12px 16px;';
       const mini = document.createElement('table');
       mini.className = 'data';
@@ -13009,14 +13103,42 @@ function renderAdminApprovalsTable(){
   });
 }
 
+/* Rev44: approval is the moment a week's cost is fixed. The person's current
+   charge-out rate, discipline name and cost code are written onto the timesheet
+   row itself, and Cost Control reads only those stored values from then on —
+   which is what makes an already-approved week immune to a later rate change.
+   Approving with no rate available is still allowed (an admin may simply want
+   the hours signed off), but it's flagged clearly first, because the week will
+   contribute $0 to Cost Control until it's reopened and re-approved with a
+   discipline set. */
 async function approveAdminTimesheet(t){
-  if (!confirm(`Approve ${t.personEmail}'s timesheet for the week of ${fmtWeekLabel(t.week_start)}? This locks the week — they won't be able to edit it themselves afterwards.`)) return;
+  const total = timesheetWeekTotal(t.lines);
+  const hasRate = t.personRate !== null && t.personRate !== undefined && t.personCostCode;
+  const costLine = hasRate
+    ? `\n\nThis will be costed at ${money(t.personRate)}/hr against cost code ${t.personCostCode} — ${money(t.personRate * total)} across ${fmt2(total)} hours, split onto each project they booked time to (Overhead hours are not job-costed). That rate is frozen now: changing your Charge-Out Rates later won't restate this week.`
+    : `\n\nWARNING: ${t.personEmail} has no Timesheet discipline assigned, so there's no charge-out rate to cost these hours at. Approving now signs the hours off but contributes $0 to Cost Control. Set their discipline on the Admin → Users tab first if you want this week costed.`;
+  if (!confirm(`Approve ${t.personEmail}'s timesheet for the week of ${fmtWeekLabel(t.week_start)}? This locks the week — they won't be able to edit it themselves afterwards.${costLine}`)) return;
   try{
     const { data: { user } } = await supabaseClient.auth.getUser();
-    const { error } = await supabaseClient
-      .from('organisation_timesheets')
-      .update({ status: 'approved', admin_note: null, reviewed_by: user ? user.id : null, reviewed_at: new Date().toISOString() })
-      .eq('id', t.id);
+    const base = { status: 'approved', admin_note: null, reviewed_by: user ? user.id : null, reviewed_at: new Date().toISOString() };
+    /* The snapshot fields are written on EVERY approval, nulled out when there's
+       no rate to freeze — not just set when there is one. Otherwise a week that
+       was approved once, reopened, had its owner's discipline removed, and was
+       then re-approved would silently keep costing at the stale rate from the
+       first approval. */
+    const patch = Object.assign({}, base, {
+      costed_rate: hasRate ? t.personRate : null,
+      costed_discipline: hasRate ? (t.personDiscipline || null) : null,
+      costed_cost_code: hasRate ? t.personCostCode : null
+    });
+    let { error } = await supabaseClient.from('organisation_timesheets').update(patch).eq('id', t.id);
+    if (error){
+      // Pre-Rev44 database: the costed_* columns don't exist yet. Approve
+      // anyway, exactly as Rev43 did — the week is signed off, it just isn't
+      // costed until timesheet_costing_migration.sql has been run.
+      console.warn('approveAdminTimesheet: could not write the cost snapshot (has timesheet_costing_migration.sql been run?) — approving without costing.', error);
+      ({ error } = await supabaseClient.from('organisation_timesheets').update(base).eq('id', t.id));
+    }
     if (error) throw error;
   }catch(e){
     alert('Could not approve this timesheet: ' + (e.message || e));
@@ -13072,9 +13194,12 @@ async function reopenAdminApprovedTimesheet(t){
    way Directory/Rates Library/Admin talk to their own org-level tables.
    Draft → Submit → Approved/back-to-Draft, autosaved on every edit like a
    normal worksheet. Stage 2 (admin approval — see the Admin Tool's
-   Timesheet Approvals section above) is now built; costing approved
-   hours out to Cost Control and the org-wide Overhead summary is still a
-   future stage, not started. */
+   Timesheet Approvals section above) and Stage 3 (costing approved hours
+   out to Cost Control's Labour column — see loadProjectLabourCosts() and
+   timesheet_costing_migration.sql) are both built. The org-wide Overhead
+   summary — a report of how much non-job-costed time the organisation is
+   carrying — is still a future stage, not started; Overhead hours are
+   captured here, they just have nowhere to be reported yet. */
 let currentTimesheetWeekStart = null; // ISO date (YYYY-MM-DD) of the Monday currently shown
 let timesheetCache = null;
 let timesheetMigrationAvailable = true; // flips false on first failed query — see loadTimesheetWeek()
@@ -15325,7 +15450,10 @@ function renderOverview(){
   const financialCards = [
     { lbl: 'Tender Total (excl GST)', val: money(tender.totalExcl), sub: 'incl GST ' + money(tender.totalIncl) },
     { lbl: 'Revised Budget', val: money(budgetTotals.revisedBudget), sub: 'Budget ' + money(budgetTotals.budget) + ' + Approved VOs ' + money(budgetTotals.approvedVOs) },
-    { lbl: 'Total Forecast', val: money(budgetTotals.totalForecast), sub: 'Committed ' + money(budgetTotals.committed) },
+    // Rev44: labour is shown alongside committed here only when there is some —
+    // on a project with no approved timesheet hours yet the card reads exactly
+    // as it did before, rather than gaining a permanent "Labour $0".
+    { lbl: 'Total Forecast', val: money(budgetTotals.totalForecast), sub: 'Committed ' + money(budgetTotals.committed) + (budgetTotals.labour ? ' · Labour ' + money(budgetTotals.labour) : '') },
     { lbl: 'Projected Gain / Loss', val: money(budgetTotals.gainLoss), valClass: budgetTotals.gainLoss < 0 ? 'neg' : 'pos', sub: 'Revised Budget less Total Forecast' },
     { lbl: 'Approved Variations', val: money(approvedVariations), sub: state.variations.length + ' total on register' },
     { lbl: 'Gross Claim to Date', val: money2(grossClaimToDate), sub: 'Trades + approved variations claimed' }
@@ -16948,7 +17076,7 @@ function moveBudgetExtra(xi, dir){
 function computeBudgetTotals(){
   // runTransfer deliberately never accumulates (stays 0) — see the matching comment
   // in renderBudget() below for why.
-  let runB = 0, runVO = 0, runTransfer = 0, runCommit = 0, runSubVO = 0, runPO = 0, runForecast = 0, runTotalForecast = 0;
+  let runB = 0, runVO = 0, runTransfer = 0, runCommit = 0, runLabour = 0, runSubVO = 0, runPO = 0, runForecast = 0, runTotalForecast = 0;
 
   function addLine(budgetId, budgetDefault, committedDefault, subVODefault, costCode){
     committedDefault = num(committedDefault) + committedPOByCostCode(costCode);
@@ -16959,10 +17087,11 @@ function computeBudgetTotals(){
     const revBudget = bAmt + voAmt + transferAmt;
     const cAmt = committedOverride(budgetId, committedDefault);
     const poAmt = pendingPOByCostCode(costCode);
-    const autoForecast = Math.max(0, revBudget - cAmt - subVODefault - poAmt);
+    const labourAmt = labourByCostCode(costCode); // Rev44 — mirrors addBudgetRow()
+    const autoForecast = Math.max(0, revBudget - cAmt - labourAmt - subVODefault - poAmt);
     const forecastToComplete = forecastValue(budgetId, autoForecast);
-    const totalForecast = cAmt + subVODefault + poAmt + forecastToComplete;
-    runB += bAmt; runVO += voAmt; runCommit += cAmt; runSubVO += subVODefault; runPO += poAmt;
+    const totalForecast = cAmt + labourAmt + subVODefault + poAmt + forecastToComplete;
+    runB += bAmt; runVO += voAmt; runCommit += cAmt; runLabour += labourAmt; runSubVO += subVODefault; runPO += poAmt;
     runForecast += forecastToComplete; runTotalForecast += totalForecast;
   }
 
@@ -16998,6 +17127,21 @@ function computeBudgetTotals(){
   if (calc.contingency){
     addLine('contractors-contingency', calc.contingency, 0, 0, CONTINGENCY_COST_CODE);
   }
+  /* Rev44: mirror renderBudget()'s synthetic "labour with no matching budget
+     line" rows, or the Project Overview dashboard would quietly disagree with
+     the Cost Control tab's TOTAL row whenever one of those rows exists. */
+  const coveredCodes = new Set();
+  state.trades.forEach(t => { if (t.isPG || !isTradePriced(t)) return; const c = (t.costCode || '').trim(); if (c) coveredCodes.add(c); });
+  state.pgHeadings.forEach(h => { const c = (h.costCode || '').trim(); if (c) coveredCodes.add(c); });
+  state.budgetExtras.forEach(x => { const c = (x.costCode || '').trim(); if (c) coveredCodes.add(c); });
+  state.includedSums.forEach(i => { const c = (i.costCode || '').trim(); if (c) coveredCodes.add(c); });
+  state.provisionalSums.forEach(i => { const c = (i.costCode || '').trim(); if (c) coveredCodes.add(c); });
+  if (showMargin) coveredCodes.add(MARGIN_COST_CODE);
+  if (calc.contingency) coveredCodes.add(CONTINGENCY_COST_CODE);
+  labourCostCodes().forEach(code => {
+    if (coveredCodes.has(code)) return;
+    addLine('labour-' + code, 0, 0, 0, code);
+  });
 
   const revisedBudget = runB + runVO + runTransfer;
   return {
@@ -17006,6 +17150,7 @@ function computeBudgetTotals(){
     budgetTransfer: runTransfer,
     revisedBudget,
     committed: runCommit,
+    labour: runLabour,
     subcontractVOs: runSubVO,
     pendingPOs: runPO,
     forecastToComplete: runForecast,
@@ -17028,7 +17173,7 @@ function renderBudget(){
   // instead of cancelling out). Total Revised Budget is unaffected by transfers
   // for the same reason: a transfer only redistributes existing budget between
   // cost codes, it never changes how much budget exists project-wide.
-  let runB = 0, runVO = 0, runTransfer = 0, runCommit = 0, runSubVO = 0, runPO = 0, runForecast = 0, runTotalForecast = 0;
+  let runB = 0, runVO = 0, runTransfer = 0, runCommit = 0, runLabour = 0, runSubVO = 0, runPO = 0, runForecast = 0, runTotalForecast = 0;
 
   const rows = state.trades
     .map((t, ti) => ({ t, ti }))
@@ -17042,7 +17187,7 @@ function renderBudget(){
   const hasAnyRows = rows.length || costedPgHeadings.length || state.includedSums.length || state.provisionalSums.length || state.budgetExtras.length;
   if (!hasAnyRows){
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="14" style="color:var(--muted);font-style:italic;">No trades priced yet — price trades on the Tender Analysis tab, or add costs on the Preliminaries &amp; General worksheet, so they appear on the Trade Summary and populate the Budget.</td>`;
+    tr.innerHTML = `<td colspan="15" style="color:var(--muted);font-style:italic;">No trades priced yet — price trades on the Tender Analysis tab, or add costs on the Preliminaries &amp; General worksheet, so they appear on the Trade Summary and populate the Budget.</td>`;
     body.appendChild(tr);
   }
 
@@ -17073,11 +17218,18 @@ function renderBudget(){
     const cAmt = committedOverride(budgetId, committedDefault);
     const subVOAmt = subVODefault;
     const poAmt = pendingPOByCostCode(costCode);
-    const autoForecast = Math.max(0, revBudget - cAmt - subVOAmt - poAmt);
+    // Rev44: Labour (approved timesheet cost) behaves exactly like Committed in
+    // this waterfall — it's cost already incurred, so it eats into the gap the
+    // automatic Forecast to Complete fills, and it counts toward Total Forecast
+    // and therefore Gain/Loss. Deliberately NOT folded into the Committed figure
+    // itself: keeping it in its own column is what lets a PM see supervision
+    // spend separately from subcontract and PO commitment.
+    const labourAmt = labourByCostCode(costCode);
+    const autoForecast = Math.max(0, revBudget - cAmt - labourAmt - subVOAmt - poAmt);
     const forecastToComplete = forecastValue(budgetId, autoForecast);
-    const totalForecast = cAmt + subVOAmt + poAmt + forecastToComplete;
+    const totalForecast = cAmt + labourAmt + subVOAmt + poAmt + forecastToComplete;
     const gainLoss = revBudget - totalForecast;
-    runB += bAmt; runVO += voAmt; runCommit += cAmt; runSubVO += subVOAmt; runPO += poAmt;
+    runB += bAmt; runVO += voAmt; runCommit += cAmt; runLabour += labourAmt; runSubVO += subVOAmt; runPO += poAmt;
     runForecast += forecastToComplete; runTotalForecast += totalForecast;
 
     const tr = document.createElement('tr');
@@ -17092,7 +17244,7 @@ function renderBudget(){
     // the trades list above is already filtered to isTradePriced), which keeps the
     // original "seeing an empty one is how you notice it needs a figure" behaviour
     // for everything except P&G.
-    if (!bAmt && !voAmt && !cAmt && !subVOAmt && !poAmt && !forecastToComplete && !totalForecast){
+    if (!bAmt && !voAmt && !cAmt && !labourAmt && !subVOAmt && !poAmt && !forecastToComplete && !totalForecast){
       tr.className = isPg ? 'budget-zero-row budget-pg-zero-row' : 'budget-zero-row';
     }
 
@@ -17132,6 +17284,12 @@ function renderBudget(){
     tdCommitted.textContent = fmt(cAmt);
     tdCommitted.title = 'Automatic — Engaged/Complete subcontractor(s)\' contract sum plus closed Purchase Orders\' invoiced amounts against this cost code';
     tr.appendChild(tdCommitted);
+
+    const tdLabour = document.createElement('td');
+    tdLabour.className = 'num readout';
+    tdLabour.textContent = fmt(labourAmt);
+    tdLabour.title = labourCellTitle(costCode);
+    tr.appendChild(tdLabour);
 
     const tdSubVO = document.createElement('td');
     tdSubVO.className = 'num readout';
@@ -17175,7 +17333,7 @@ function renderBudget(){
   function addHeadingRow(label){
     const tr = document.createElement('tr');
     tr.className = 'heading-row';
-    tr.innerHTML = `<td colspan="14">${escapeHtml(label)}</td>`;
+    tr.innerHTML = `<td colspan="15">${escapeHtml(label)}</td>`;
     body.appendChild(tr);
   }
 
@@ -17245,7 +17403,7 @@ function renderBudget(){
      was non-zero), leaving what looks like a blank table instead of guidance. */
   if (!anyBudgetLineVisible && budgetLines.length && !state.includedSums.length && !state.provisionalSums.length && !state.budgetExtras.length){
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="14" style="color:var(--muted);font-style:italic;">No trades priced yet — price trades on the Tender Analysis tab, or add costs on the Preliminaries &amp; General worksheet, so they appear on the Trade Summary and populate the Budget.</td>`;
+    tr.innerHTML = `<td colspan="15" style="color:var(--muted);font-style:italic;">No trades priced yet — price trades on the Tender Analysis tab, or add costs on the Preliminaries &amp; General worksheet, so they appear on the Trade Summary and populate the Budget.</td>`;
     body.appendChild(tr);
   }
 
@@ -17258,11 +17416,12 @@ function renderBudget(){
     const cAmt = num(x.committed) + committedPOByCostCode(x.costCode);
     const subVOAmt = 0; // manual extras have no linked subcontractor
     const poAmt = pendingPOByCostCode(x.costCode);
-    const autoForecast = Math.max(0, revBudget - cAmt - subVOAmt - poAmt);
+    const labourAmt = labourByCostCode(x.costCode); // Rev44 — same treatment as addBudgetRow above
+    const autoForecast = Math.max(0, revBudget - cAmt - labourAmt - subVOAmt - poAmt);
     const forecastToComplete = forecastValue(x.id, autoForecast);
-    const totalForecast = cAmt + subVOAmt + poAmt + forecastToComplete;
+    const totalForecast = cAmt + labourAmt + subVOAmt + poAmt + forecastToComplete;
     const gainLoss = revBudget - totalForecast;
-    runB += bAmt; runVO += voAmt; runCommit += cAmt; runSubVO += subVOAmt; runPO += poAmt;
+    runB += bAmt; runVO += voAmt; runCommit += cAmt; runLabour += labourAmt; runSubVO += subVOAmt; runPO += poAmt;
     runForecast += forecastToComplete; runTotalForecast += totalForecast;
 
     const tr = document.createElement('tr');
@@ -17320,6 +17479,12 @@ function renderBudget(){
     tdCommitted.textContent = fmt(cAmt);
     tdCommitted.title = 'Automatic — includes closed Purchase Orders\' invoiced amounts against this cost code';
     tr.appendChild(tdCommitted);
+
+    const tdLabour = document.createElement('td');
+    tdLabour.className = 'num readout';
+    tdLabour.textContent = fmt(labourAmt);
+    tdLabour.title = labourCellTitle(x.costCode);
+    tr.appendChild(tdLabour);
 
     const tdSubVO = document.createElement('td');
     tdSubVO.className = 'num readout';
@@ -17473,6 +17638,56 @@ function renderBudget(){
     });
   }
 
+  /* ---- Rev44: approved labour sitting on a cost code with no budget line ----
+     Normally the cost code approved timesheet hours are charged to (1000 =
+     Site Supervision & Administration by default) already exists as a P&G
+     section on the project, so the Labour figure just appears on that row and
+     this block does nothing. But a project whose P&G worksheet was built by
+     hand — or one where an admin has pointed a discipline at some other cost
+     code — can end up with real labour cost against a code no row carries, and
+     the cost would then silently vanish from the report.
+
+     Rather than writing a new heading into the project's saved P&G worksheet,
+     the row is synthesised here at render time. Same thing on screen, but it
+     can't create duplicates on repeat renders and can't leave a stray heading
+     on the P&G worksheet the user didn't add. It carries a $0 budget (because
+     there genuinely isn't one), so it shows the full labour cost as a loss —
+     which is the correct and useful signal: you're spending supervision time
+     against a code you haven't budgeted. Give the code a P&G section with a
+     value and the row stops being synthetic and merges into the normal one. */
+  const coveredCostCodes = new Set();
+  budgetLines.forEach(l => { const c = (l.costCode || '').trim(); if (c) coveredCostCodes.add(c); });
+  state.budgetExtras.forEach(x => { const c = (x.costCode || '').trim(); if (c) coveredCostCodes.add(c); });
+  state.includedSums.forEach(i => { const c = (i.costCode || '').trim(); if (c) coveredCostCodes.add(c); });
+  state.provisionalSums.forEach(i => { const c = (i.costCode || '').trim(); if (c) coveredCostCodes.add(c); });
+  if (showMargin) coveredCostCodes.add(MARGIN_COST_CODE);
+  if (calc.contingency) coveredCostCodes.add(CONTINGENCY_COST_CODE);
+
+  const orphanLabourCodes = labourCostCodes().filter(c => !coveredCostCodes.has(c)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  if (orphanLabourCodes.length){
+    addHeadingRow('Labour — no matching budget line');
+    orphanLabourCodes.forEach(code => {
+      const tdName = document.createElement('td');
+      tdName.className = 'readout';
+      tdName.textContent = 'Approved timesheet labour';
+      tdName.title = 'No priced trade or Preliminaries & General section on this project carries cost code ' + code + ', so this labour has nowhere else to sit. Add a P&G section with this cost code to give it a budget.';
+      const tdCode = document.createElement('td');
+      tdCode.className = 'readout';
+      tdCode.textContent = code;
+      addBudgetRow({
+        codeCell: tdCode,
+        nameCell: tdName,
+        rowLabel: 'Approved timesheet labour (' + code + ')',
+        budgetId: 'labour-' + code,
+        budgetDefault: 0,
+        committedDefault: 0,
+        subVODefault: 0,
+        costCode: code,
+        actionsCell: document.createElement('td')
+      });
+    });
+  }
+
   const totalRevBudget = runB + runVO + runTransfer;
   const foot = document.getElementById('budget-foot');
   foot.innerHTML = `
@@ -17483,6 +17698,7 @@ function renderBudget(){
       <td class="num calc" title="Every completed transfer always nets to zero across the whole Budget — it only ever redistributes existing budget between cost codes.">${money(runTransfer)}</td>
       <td class="num calc">${money(totalRevBudget)}</td>
       <td class="num calc">${money(runCommit)}</td>
+      <td class="num calc">${money(runLabour)}</td>
       <td class="num calc">${money(runSubVO)}</td>
       <td class="num calc">${money(runPO)}</td>
       <td class="num calc budget-fc-col">${money(runForecast)}</td>
@@ -18776,6 +18992,100 @@ function pendingPOByCostCode(costCode){
   });
   return total;
 }
+/* ---- LABOUR COST FROM APPROVED TIMESHEETS (Rev44 — see timesheet_costing_migration.sql) ----
+   Stage 3 of the Timesheet Tool: approved hours finally reach Cost Control.
+
+   The chain is: a person's profile carries a discipline_id -> that discipline's
+   row on organisation_charge_rates carries an hourly_rate AND a cost_code
+   (Rev44 added the cost_code column, defaulting to '1000' = Site Supervision &
+   Administration, so all job-costed time lands there unless an admin points a
+   discipline somewhere else). When an admin approves a week, that rate, that
+   discipline name and that cost code are SNAPSHOT ONTO THE TIMESHEET ROW
+   (costed_rate / costed_discipline / costed_cost_code — see
+   approveAdminTimesheet). Nothing downstream ever re-reads the rates table, so
+   changing a charge-out rate next year cannot retrospectively restate a week
+   that's already been approved and costed.
+
+   This side only reads the result: one call to the project_labour_cost() RPC
+   returns, for the currently-open project, the approved hours and dollars per
+   cost code across EVERYONE in the organisation. It has to be an RPC rather
+   than a direct select because organisation_timesheets is RLS-scoped so a
+   person can only read their own rows — a PM looking at Cost Control needs to
+   see the whole team's costed time on their project, which is exactly the kind
+   of narrowly-scoped cross-user read am_i_org_admin() exists for elsewhere.
+
+   Overhead time is excluded by construction: an Overhead line's projectId is
+   the sentinel string 'OVERHEAD', which never matches a real project id.
+
+   Fails open, same convention as the Directory and Job Number features before
+   it — until timesheet_costing_migration.sql has been run, the RPC doesn't
+   exist, the call is caught and logged, the cache stays empty, and every
+   Labour figure reads $0 with the rest of Cost Control behaving exactly as it
+   did in Rev43. */
+let labourCostByCostCode = Object.create(null); // cost code -> { cost, hours }
+let labourCostAvailable = false;                // flips true once the RPC has answered at least once
+let labourCostLoading = false;                  // guards against overlapping refreshes
+
+async function loadProjectLabourCosts(){
+  if (!CURRENT_PROJECT_ID || labourCostLoading) return false;
+  labourCostLoading = true;
+  const before = JSON.stringify(labourCostByCostCode);
+  try{
+    const { data, error } = await supabaseClient.rpc('project_labour_cost', { p_project_id: CURRENT_PROJECT_ID });
+    if (error) throw error;
+    const next = Object.create(null);
+    (data || []).forEach(r => {
+      const code = String(r.cost_code || '').trim();
+      if (!code) return;
+      next[code] = { cost: num(r.cost), hours: num(r.hours) };
+    });
+    labourCostByCostCode = next;
+    labourCostAvailable = true;
+  }catch(e){
+    console.warn('loadProjectLabourCosts: approved-timesheet labour cost is not available yet (has timesheet_costing_migration.sql been run?) — Cost Control will show $0 Labour until it is.', e);
+    labourCostAvailable = false;
+  }finally{
+    labourCostLoading = false;
+  }
+  return JSON.stringify(labourCostByCostCode) !== before; // did anything actually change?
+}
+
+/* Budget "Labour" contribution for one cost code — the dollar value of every
+   APPROVED timesheet hour booked to this project against this cost code, at the
+   rate frozen when each week was approved. Deliberately shaped exactly like
+   committedPOByCostCode/pendingPOByCostCode above so it drops into the same row
+   waterfall without a special case. */
+function labourByCostCode(costCode){
+  const code = (costCode || '').trim();
+  if (!code) return 0;
+  const rec = labourCostByCostCode[code];
+  return rec ? num(rec.cost) : 0;
+}
+function labourHoursByCostCode(costCode){
+  const code = (costCode || '').trim();
+  if (!code) return 0;
+  const rec = labourCostByCostCode[code];
+  return rec ? num(rec.hours) : 0;
+}
+/* Tooltip text for a Labour cell — states the hours behind the figure so a PM
+   can sanity-check it against the Timesheet Approvals queue without leaving
+   Cost Control, and explains the frozen-rate behaviour rather than leaving the
+   number looking like it might drift. */
+function labourCellTitle(costCode){
+  const hrs = labourHoursByCostCode(costCode);
+  if (!hrs) return 'Auto-populated from approved Timesheet hours booked to this project against this cost code. Nothing approved against this code yet.';
+  return fmt2(hrs) + ' approved timesheet hour' + (hrs === 1 ? '' : 's') +
+    ' booked to this project against this cost code, costed at each person\'s charge-out rate as it stood when their week was approved (changing a rate later never restates an already-approved week).';
+}
+/* Every cost code that has approved labour against it — used to surface a cost
+   code that has real labour cost but no matching budget line (no priced trade
+   and no P&G section carrying that code), which would otherwise silently drop
+   the cost off the bottom of the report. See the synthetic-row block at the end
+   of renderBudget(). */
+function labourCostCodes(){
+  return Object.keys(labourCostByCostCode).filter(c => num(labourCostByCostCode[c].cost) || num(labourCostByCostCode[c].hours));
+}
+
 /* Budget "Committed Cost" contribution from Purchase Orders — only invoices logged
    against a CLOSED PO count as committed cost. An open PO's invoices-to-date sit in
    Pending POs' "remaining balance" calculation instead (see pendingPOByCostCode) until
@@ -32878,7 +33188,18 @@ function switchTab(tab){
   else if (tab === 'gantt2') renderGantt('gantt2');
   else if (tab === 'summary') renderSummary();
   else if (tab === 'rates-library') renderRatesLibrary();
-  else if (tab === 'budget') renderBudget();
+  else if (tab === 'budget'){
+    /* Render immediately from whatever labour figures are already cached (from
+       startup), then quietly re-check in the background and re-render only if
+       they've actually changed — an admin elsewhere in the organisation may
+       have approved a timesheet since this session loaded, and waiting on a
+       network round trip before showing the tab would make it feel slow for
+       the far more common case where nothing has changed. */
+    renderBudget();
+    loadProjectLabourCosts().then(changed => {
+      if (changed && currentTab === 'budget') renderBudget();
+    });
+  }
   else if (tab === 'cashflow') renderCashflow();
   else if (tab === 'claim') renderClaimRegister();
   else if (tab === 'variations') renderVariations();
@@ -32922,6 +33243,7 @@ function renderAll(){
   await loadState();
   await loadOrgDirectory();
   await loadOrgRatesLibrary();
+  await loadProjectLabourCosts(); // Rev44 — approved timesheet cost for Cost Control
   await loadUserThemePreference();
   await loadUserPermissions();
   await DrawingStore.init();
