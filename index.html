@@ -20569,6 +20569,40 @@ function handleCompletionScheduleAttachFile(file){
   }).catch(e => { console.warn('Failed to store compliance schedule document', file.name, e); alert(`"${file.name}" could not be stored.`); });
 }
 
+/* ---------- Compliance Schedule textarea auto-height ----------
+   The Document Type and Description cells are <textarea>s so long entries wrap
+   instead of scrolling sideways, but they were fixed at rows=1 / rows=2, so
+   anything longer than that was cut off and you had to drag the resize corner
+   to read it. Worse, the drag didn't survive anything: renderCompletionScheduleTable()
+   rebuilds the whole table body from scratch, so every re-render — switching tools
+   and back, attaching a document, adding a line — threw the dragged height away
+   and snapped the boxes back to one row.
+
+   Rather than remembering the dragged height, each box now sizes itself to its
+   own content, so the full wrapped text is always visible and there's nothing
+   to drag in the first place. Set height:auto first so the box shrinks as well
+   as grows when text is deleted; scrollHeight includes padding but not border
+   (these are box-sizing:border-box via table.data textarea), hence adding the
+   borders back on.
+
+   Guarded on offsetParent because a hidden element reports scrollHeight 0 —
+   this function is also reachable while the Completion tool isn't the visible
+   tab, and without the guard those rows would collapse to nothing. Every path
+   into the tool re-renders on entry (switchTab → switchCompletionSection), so
+   skipping while hidden costs nothing. */
+function autoSizeScheduleTextarea(ta){
+  if (!ta || ta.offsetParent === null) return;
+  const cs = getComputedStyle(ta);
+  const borders = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+  ta.style.height = 'auto';
+  ta.style.height = (ta.scrollHeight + borders) + 'px';
+}
+function autoSizeAllScheduleTextareas(){
+  const body = document.getElementById('completion-schedule-body');
+  if (!body) return;
+  body.querySelectorAll('textarea').forEach(autoSizeScheduleTextarea);
+}
+
 function renderCompletionScheduleTable(){
   const body = document.getElementById('completion-schedule-body');
   if (!body) return;
@@ -20581,7 +20615,7 @@ function renderCompletionScheduleTable(){
     typeInp.rows = 1;
     typeInp.value = it.docType || ''; typeInp.placeholder = 'e.g. PS3 — Construction';
     typeInp.style.cssText = 'width:100%;min-width:0;min-height:0;';
-    typeInp.addEventListener('input', () => { it.docType = typeInp.value; scheduleSave(); });
+    typeInp.addEventListener('input', () => { it.docType = typeInp.value; autoSizeScheduleTextarea(typeInp); scheduleSave(); });
     tdType.appendChild(typeInp); tr.appendChild(tdType);
 
     const tdDesc = document.createElement('td');
@@ -20589,7 +20623,7 @@ function renderCompletionScheduleTable(){
     descInp.rows = 2;
     descInp.value = it.description || ''; descInp.placeholder = 'Optional detail';
     descInp.style.cssText = 'width:100%;min-width:0;min-height:0;';
-    descInp.addEventListener('input', () => { it.description = descInp.value; scheduleSave(); });
+    descInp.addEventListener('input', () => { it.description = descInp.value; autoSizeScheduleTextarea(descInp); scheduleSave(); });
     tdDesc.appendChild(descInp); tr.appendChild(tdDesc);
 
     const tdAud = document.createElement('td');
@@ -20673,6 +20707,9 @@ function renderCompletionScheduleTable(){
   if (countEl) countEl.textContent = total
     ? `${done} of ${total} item${total === 1 ? '' : 's'} complete.`
     : 'No items on the schedule yet — add a line, or use "+ Add Common Items" or "Generate Schedule with AI" to get started.';
+  // Sized after the rows are in the DOM — scrollHeight is only meaningful once
+  // the cell has its real column width, which it doesn't have until then.
+  autoSizeAllScheduleTextareas();
 }
 
 /* ---------- "+ Add Common Items" picker (modal) ---------- */
@@ -32487,6 +32524,16 @@ function wireStaticEvents(){
 
   /* ---- Completion tab ---- */
   document.getElementById('tab-completion').addEventListener('click', () => switchTab('completion'));
+  /* Narrowing or widening the window changes the Document Type / Description
+     column widths, which rewraps their text onto a different number of lines —
+     so the auto-fitted heights have to be recomputed or the boxes end up too
+     short (clipping) or too tall (gaps). Debounced, and autoSizeScheduleTextarea's
+     own offsetParent guard makes it a no-op unless the schedule is on screen. */
+  let completionResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(completionResizeTimer);
+    completionResizeTimer = setTimeout(autoSizeAllScheduleTextareas, 150);
+  });
   const completionDropzone = document.getElementById('completion-dropzone');
   const completionFileInput = document.getElementById('completion-file-input');
   completionDropzone.addEventListener('click', () => completionFileInput.click());
