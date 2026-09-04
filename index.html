@@ -30820,19 +30820,20 @@ function wireStaticEvents(){
   });
 
   document.getElementById('btn-invite').addEventListener('click', async () => {
+    // Rev52: the role prompt is gone. It offered owner/admin/editor/viewer as
+    // free text, but three of the four were wrong to offer: 'viewer' can open
+    // a project and then fails every save (the app's saves are UPDATEs on
+    // projects, which RLS restricts to editor and above), and admin/owner let
+    // the invitee manage membership — including re-inviting themselves as
+    // owner. invite_user_to_project() now always adds people as 'editor', the
+    // minimum role at which the app actually works, and requires the CALLER to
+    // be an organisation admin. What each person can then see and do is
+    // governed by their Permission Group(s), not by this role.
     const email = prompt('Email address to invite to this project:');
-    if (!email) return;
-    const role = prompt('Role for this person — owner, admin, editor, or viewer:', 'editor');
-    if (!role) return;
-    const cleanRole = role.trim().toLowerCase();
-    if (!['owner','admin','editor','viewer'].includes(cleanRole)){
-      alert('Role must be one of: owner, admin, editor, viewer');
-      return;
-    }
+    if (!email || !email.trim()) return;
     const { data, error } = await supabaseClient.rpc('invite_user_to_project', {
       target_project_id: CURRENT_PROJECT_ID,
-      invite_email: email.trim(),
-      invite_role: cleanRole
+      invite_email: email.trim()
     });
     if (error){ alert('Could not invite: ' + error.message); return; }
     alert(data);
