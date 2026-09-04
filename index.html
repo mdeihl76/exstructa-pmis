@@ -1111,6 +1111,21 @@
      See #summary .extra-line and #summary .final-row below for the other
      halves of this fix. */
   #summary .margin-line{padding-left:8px;}
+  /* Rev46: line the Internal Contingency % box up with the Contractors Margin
+     and Contractors Contingency % boxes below it. Those two land at a fixed x
+     because their rows are built from fixed parts — the 44px cost-code badge
+     + its 8px margin-right, then .mlabel's 236px min-width, then the input
+     wrapper's 14px margin-left = 302px past the row's 8px left padding. The
+     Internal Contingency row has no cost-code badge and its label was left at
+     its natural text width, so its box landed wherever that sentence happened
+     to end — a different x, and one that shifts with the font (it's noticeably
+     left of the other two in Barlow). 294px here + that row's own 8px wrapper
+     margin = the same 302px, so all three line up regardless of font metrics
+     or zoom rather than by a measured-once pixel value. Barlow renders the
+     label at roughly 255px so there's headroom; if it's ever lengthened past
+     294px it wraps to a second line rather than pushing the box out of line.
+     Change this together with .margin-line .mlabel's 236px if that moves. */
+  #summary #trade-adjust-row .mlabel{flex:0 0 294px;min-width:0;}
   .margin-line input{
     width:70px;font-family:var(--mono);text-align:right;border:1px solid var(--line);border-radius:5px;padding:4px 6px;
   }
@@ -1366,8 +1381,24 @@
      cell's text in the column right next to it — e.g. a linked-sub row's
      Company name looks indented compared to the row above/below it. Scoped
      to just this table so the many other places .readout is used elsewhere
-     in the app (which weren't reported as misaligned) are untouched. */
-  #project-directory-table td.readout{padding:5px 0;}
+     in the app (which weren't reported as misaligned) are untouched.
+
+     Rev46 correction: the previous value here (padding:5px 0) over-corrected.
+     It reasoned from .readout's own 6px padding, but forgot the cell's own
+     4px (#project-directory-table td, just above), so zeroing the readout's
+     horizontal padding put its text hard against the column edge — measured
+     in headless Chromium at 0px inset, versus 5px for every input/select cell
+     beside it, i.e. ~9px of visible misalignment where a Subcontractor-linked
+     row sits above or below a Directory-picker row. 5px here = the cell's 4px
+     + the 1px (transparent) border table.data puts on its inputs/selects, so a
+     readout's text now starts at exactly the same x as an input's. Verified by
+     pixel-measuring the first glyph in both cell types: both land at 6.5px.
+     NOTE: Chrome insets a <select>'s own text a further ~4px internally, which
+     no padding rule here can remove — so Company/Person readouts still sit 4px
+     left of the select beside them. That gap is pre-existing and already true
+     of every <input> cell in this table, so it reads as consistent rather than
+     as one row type being out of line. */
+  #project-directory-table td.readout{padding:6px 5px;}
   /* Project Directory rows come from three different sources — a trade linked
      to an engaged Subcontractor (readout cells), a trade not yet linked
      (Directory-picker select cells), and manually-added contacts (also
@@ -4792,24 +4823,31 @@
 
   <div class="side-tabs">
     <button class="tab-btn active" id="tab-overview" data-tab="overview" style="grid-column:1 / -1;">Project Overview</button>
+    <!-- Rev46: order set by Mat — reads down the two-column grid left-to-right,
+         row by row (Tendering/Drawings, then Project Directory/Programme, and
+         so on). The grid is row-major by default, so DOM order here IS the
+         on-screen order; reordering these lines is all that's needed. Nothing
+         else keys off this order — every switchTab()/render path keys off
+         data-tab, and the Admin tool list (PERMISSION_TOOLS) carries its own
+         copy of the same order, kept in step by hand. -->
     <button class="tab-btn" id="tab-tendering" data-tab="tendering">Tendering</button>
+    <button class="tab-btn" id="tab-cdrawings" data-tab="cdrawings">Drawings</button>
     <button class="tab-btn" id="tab-project-directory" data-tab="project-directory">Project Directory</button>
     <button class="tab-btn" id="tab-gantt2" data-tab="gantt2">Programme</button>
     <button class="tab-btn" id="tab-budget" data-tab="budget">Cost Control</button>
     <button class="tab-btn" id="tab-cashflow" data-tab="cashflow">Cash Flow Forecast</button>
-    <button class="tab-btn" id="tab-claim" data-tab="claim">Payment Claim</button>
-    <button class="tab-btn" id="tab-cdrawings" data-tab="cdrawings">Drawings</button>
-    <button class="tab-btn" id="tab-variations" data-tab="variations">Variation Register</button>
+    <button class="tab-btn" id="tab-claim" data-tab="claim">Payment Claims</button>
+    <button class="tab-btn" id="tab-variations" data-tab="variations">Variations</button>
     <button class="tab-btn" id="tab-subcontractors" data-tab="subcontractors">Subcontractors</button>
+    <button class="tab-btn" id="tab-health-safety" data-tab="health-safety">Health &amp; Safety</button>
     <button class="tab-btn" id="tab-purchasing" data-tab="purchasing">Purchasing</button>
     <button class="tab-btn" id="tab-communications" data-tab="communications">Communications</button>
     <button class="tab-btn" id="tab-meetings" data-tab="meetings">Meetings</button>
     <button class="tab-btn" id="tab-qa" data-tab="qa">Quality Assurance</button>
-    <button class="tab-btn" id="tab-health-safety" data-tab="health-safety">Health &amp; Safety</button>
     <button class="tab-btn" id="tab-site-diary" data-tab="site-diary">Site Diary</button>
-    <button class="tab-btn" id="tab-completion" data-tab="completion">Completion</button>
-    <button class="tab-btn" id="tab-defects" data-tab="defects">Defects</button>
     <button class="tab-btn" id="tab-photos" data-tab="photos">Photos</button>
+    <button class="tab-btn" id="tab-defects" data-tab="defects">Defects</button>
+    <button class="tab-btn" id="tab-completion" data-tab="completion">Completion</button>
   </div>
 
   <!-- Organisation-level tools — Directory (shared across every project) and
@@ -5276,8 +5314,8 @@
            the sheet by a groupline divider, the same convention Payment Claim uses
            above its Claim Summary section. -->
       <div class="no-print">
-        <div class="margin-line" style="margin:0;padding:5px 0 5px 8px;justify-content:flex-start;">
-          <div class="mlabel" style="min-width:0;">Internal Contingency applied to all trades</div>
+        <div class="margin-line" id="trade-adjust-row" style="margin:0;padding:5px 0 5px 8px;justify-content:flex-start;">
+          <div class="mlabel">Internal Contingency applied to all trades</div>
           <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
             <input type="text" inputmode="decimal" id="trade-adjust-pct"> %
           </div>
@@ -8501,7 +8539,15 @@
        below renderHsIncidentDoc() for the full implementation. -->
   <div id="view-defects" style="display:none;">
     <div class="panel-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <!-- Rev46: whole toolbar is no-print. The two buttons already carried
+           no-print individually, but "+ New Defect" and the Open/Closed status
+           <select> didn't — so Print Register put an empty grey dropdown box
+           and an add button at the top of the printed page. They're editing
+           controls, not report content: the filter's effect is already visible
+           in which rows print, and the register heading above says which. Same
+           convention as the Meetings/QA/Communications register toolbars, which
+           all wrap the whole bar rather than the individual buttons. -->
+      <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <button class="addbtn" id="add-defect" type="button">+ New Defect</button>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <select id="defects-filter" style="padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font-family:var(--sans);font-size:13px;">
@@ -9908,23 +9954,23 @@ let CURRENT_USER_ID = null;
 const PERMISSION_TOOLS = [
   { id: 'overview', label: 'Project Overview' },
   { id: 'tendering', label: 'Tendering' },
+  { id: 'cdrawings', label: 'Drawings' },
   { id: 'project-directory', label: 'Project Directory' },
   { id: 'gantt2', label: 'Programme' },
   { id: 'budget', label: 'Cost Control' },
   { id: 'cashflow', label: 'Cash Flow Forecast' },
-  { id: 'claim', label: 'Payment Claim' },
-  { id: 'cdrawings', label: 'Drawings' },
-  { id: 'variations', label: 'Variation Register' },
+  { id: 'claim', label: 'Payment Claims' },
+  { id: 'variations', label: 'Variations' },
   { id: 'subcontractors', label: 'Subcontractors' },
+  { id: 'health-safety', label: 'Health & Safety' },
   { id: 'purchasing', label: 'Purchasing' },
   { id: 'communications', label: 'Communications' },
   { id: 'meetings', label: 'Meetings' },
   { id: 'qa', label: 'Quality Assurance' },
-  { id: 'health-safety', label: 'Health & Safety' },
   { id: 'site-diary', label: 'Site Diary' },
-  { id: 'completion', label: 'Completion' },
+  { id: 'photos', label: 'Photos' },
   { id: 'defects', label: 'Defects' },
-  { id: 'photos', label: 'Photos' }
+  { id: 'completion', label: 'Completion' }
 ];
 // Contractors Margin and Contractors Contingency are each a single aggregate line
 // (not a list like Included/Provisional Sums), so their cost codes are fixed
@@ -33039,7 +33085,7 @@ const TAB_META = {
   budget: { title: 'Cost Control', sub: 'Project budget / cost report, populated from priced trades on the Trade Summary tab.' },
   cashflow: { title: 'Cash Flow Forecast', sub: 'Monthly cash-out forecast, populated from priced trades on the Trade Summary tab.' },
   claim: { title: 'Payment Claims', sub: 'Construction Contracts Act 2002 compliant payment claims, one per period — open a claim to work on it.' },
-  variations: { title: 'Variation Register', sub: 'Register of client variations. Approved amounts feed the Budget and Payment Claim tabs.' },
+  variations: { title: 'Variations', sub: 'Register of client variations. Approved amounts feed the Budget and Payment Claim tabs.' },
   subcontractors: { title: 'Subcontractors', sub: 'Subcontractor engagement, communications, claims and payment schedules for the project.' },
   purchasing: { title: 'Purchasing', sub: 'Purchase orders for materials and services, linked by cost code to the Cost Control worksheet.' },
   communications: { title: 'Communications', sub: 'RFIs, Site Instructions, Notices of Delay and Extension of Time requests, optionally linked to a subcontractor.' },
