@@ -5007,6 +5007,16 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
         <div class="search-row" style="flex:1;min-width:200px;margin-bottom:0;"><input id="trade-search" placeholder="Search trades by name or cost code…"></div>
         <button id="add-trade-btn" type="button" style="width:auto;white-space:nowrap;margin:0;">+ Add trade</button>
+        <!-- Import the organisation's own standard trade list + cost codes
+             (Rev49). Columns: Trade Name / Cost Code / Internal Pricing — see
+             parseTradeListCsv(). Unlike the P&G importer next door this one
+             REPLACES the project's trade list rather than appending (appending
+             would leave the built-in ~90 trades sitting under the imported
+             ones), so it refuses when the project already has pricing entered.
+             It also saves the list at organisation level, so every new project
+             starts from it. -->
+        <button class="addbtn" id="import-trades-csv" type="button" style="width:auto;white-space:nowrap;margin:0;">Import CSV</button>
+        <input type="file" id="trades-csv-file-input" accept=".csv,text/csv" style="display:none;">
       </div>
     </div>
   </div>
@@ -9017,6 +9027,172 @@ function freshRetentionBrackets(){
 function freshTrades(){
   return JSON.parse(JSON.stringify(SEED_TRADES)).map(t => { t.id = uid(); t.expanded = false; return t; });
 }
+
+/* ============ ORGANISATION TRADE LIST (Rev49) ============
+   Same arrangement as the P&G template above: an organisation's own standard
+   trade list and cost codes — imported once via "Import CSV" on Trade
+   Pricing — live at the organisation level (organisation_trade_list), not
+   baked into the shipped app. Without this every customer's every project
+   starts with SEED_TRADES: ~90 trades and cost codes that are Exstructa's,
+   not theirs.
+
+   The cost code is the point of the exercise. It rides on the trade record,
+   and Cost Control, Internal Pricing, Variations and Purchase Orders all read
+   it from there, so importing the list is all that's needed — there's no
+   separate wiring step to link the codes through to those tools.
+
+   Deliberately does NOT touch any project's already-saved trades — a later
+   revision import only affects NEW projects, matching saveOrgPgTemplate(). */
+
+/* CSV columns: Trade Name, Cost Code, Internal Pricing. Same forgiving column
+   matching as the other three importers (case/punctuation/spacing ignored,
+   exact match first then "header contains this keyword"). */
+function parseTradeListCsv(text){
+  const rows = parseCsvText(text);
+  if (!rows.length) throw new Error('The file appears to be empty.');
+  const normalize = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const headerNorm = rows[0].map(normalize);
+  const col = (...candidates) => {
+    const norm = candidates.map(normalize);
+    for (const c of norm){ const idx = headerNorm.indexOf(c); if (idx !== -1) return idx; }
+    for (const c of norm){ const idx = headerNorm.findIndex(h => h.includes(c)); if (idx !== -1) return idx; }
+    return -1;
+  };
+  const cName = col('trade name', 'tradename', 'trade', 'name', 'description');
+  const cCode = col('cost code', 'costcode', 'cost_code', 'code');
+  const cInt = col('internal pricing', 'internalpricing', 'internal');
+  if (cName === -1) throw new Error('Could not find a "Trade Name" column in the file.');
+
+  const seen = new Set();
+  const trades = [];
+  for (let r = 1; r < rows.length; r++){
+    const name = String((rows[r][cName] || '')).trim();
+    if (!name) continue;
+    const costCode = cCode !== -1 ? String(rows[r][cCode] || '').trim() : '';
+    // Anything other than an empty cell counts as "yes" — Y, y, Yes, TRUE, 1
+    // all appear in real spreadsheets and none of them mean "no".
+    const rawInt = cInt !== -1 ? String(rows[r][cInt] || '').trim().toLowerCase() : '';
+    const isInternal = rawInt !== '' && rawInt !== 'n' && rawInt !== 'no' && rawInt !== 'false' && rawInt !== '0';
+    if (costCode){
+      if (seen.has(costCode)) throw new Error(`Cost code "${costCode}" is used more than once. Each trade needs its own code.`);
+      seen.add(costCode);
+    }
+    trades.push({ name, costCode, isInternal });
+  }
+  if (!trades.length) throw new Error('No trades were recognised — check the file has a "Trade Name" column with at least one row under it.');
+  return trades;
+}
+
+/* Builds fresh state.trades records from a stored org list. The first row is
+   always the P&G trade (per Mat: it's always the first trade on any pricing
+   schedule) — flagged isPG so it's fed from the P&G worksheet rather than
+   priced directly, exactly as SEED_TRADES[0] is. Returns null, not an empty
+   array, when the organisation hasn't imported a list yet, so callers can
+   tell "no template" apart from "an empty template" and fall back to
+   freshTrades(). */
+function freshTradesFromOrgTemplate(orgTradeListData){
+  if (!Array.isArray(orgTradeListData) || !orgTradeListData.length) return null;
+  return orgTradeListData.map((t, i) => {
+    const rec = {
+      id: uid(),
+      name: t.name || '',
+      costCode: t.costCode || '',
+      tagLabels: ['', '', '', '', '', '', ''],
+      subPriceLabel: 'Sub Price',
+      rows: [{ sel: false, sub: '', price: '', tags: ['', '', '', '', '', '', ''], allowance: '', notes: '' }],
+      expanded: false
+    };
+    if (i === 0) rec.isPG = true;
+    if (t.isInternal){ rec.isInternal = true; rec.internalPricing = { items: [], labourRate: 0 }; }
+    return rec;
+  });
+}
+
+/* Fetched at the moment a project is created rather than cached at startup —
+   the very first call can happen before CURRENT_ORG_ID exists (no project
+   loaded yet), same reasoning as fetchOrgPgTemplate(). */
+async function fetchOrgTradeList(orgId){
+  if (!orgId) return null;
+  try{
+    const { data: row, error } = await supabaseClient
+      .from('organisation_trade_list').select('trade_list_data').eq('organisation_id', orgId).maybeSingle();
+    if (error){
+      console.warn('fetchOrgTradeList: organisation_trade_list not reachable (has trade_list_migration.sql been run?) — new project will use the built-in trade list.', error);
+      return null;
+    }
+    return (row && row.trade_list_data) ? row.trade_list_data : null;
+  }catch(e){
+    console.warn('fetchOrgTradeList: unexpected error — new project will use the built-in trade list.', e);
+    return null;
+  }
+}
+
+/* A later import REPLACES this row outright rather than appending — an
+   outdated trade shouldn't linger beside its replacement. Fails open: without
+   the migration this just warns, and the import still applies to the current
+   project. */
+async function saveOrgTradeList(trades){
+  if (!CURRENT_ORG_ID) return;
+  try{
+    const listData = trades.map(t => ({ name: t.name, costCode: t.costCode, isInternal: !!t.isInternal }));
+    const { error } = await supabaseClient
+      .from('organisation_trade_list')
+      .upsert({ organisation_id: CURRENT_ORG_ID, trade_list_data: listData, updated_at: new Date().toISOString() }, { onConflict: 'organisation_id' });
+    if (error) throw error;
+  }catch(e){
+    console.warn('saveOrgTradeList: could not save the organisation-wide trade list (has trade_list_migration.sql been run?) — this import still applies to the current project, but new projects will not pick it up until the migration is run.', e);
+  }
+}
+
+/* True if any trade on this project has been priced. Guards the import from
+   wiping a live tender: unlike P&G's additive import, a trade list import
+   replaces state.trades outright, which would take every entered price with
+   it. Checks the same three places a price can live — a bidder row's price or
+   allowance, and an internal-pricing build-up. */
+function projectHasTradePricing(){
+  return (state.trades || []).some(t => {
+    if (t.internalPricing && Array.isArray(t.internalPricing.items) && t.internalPricing.items.length) return true;
+    return (t.rows || []).some(r => String(r.price || '').trim() !== '' || String(r.allowance || '').trim() !== '' || String(r.sub || '').trim() !== '');
+  });
+}
+
+function importTradeListCsvFile(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed;
+    try{
+      parsed = parseTradeListCsv(String(reader.result || ''));
+    }catch(e){
+      alert('Could not read that CSV.\n\n' + e.message);
+      return;
+    }
+    if (projectHasTradePricing()){
+      alert('This project already has pricing entered against its trades.\n\n'
+          + 'Importing a trade list replaces the whole list, which would discard that pricing. '
+          + 'Import into a new project instead — the list is saved for your organisation, so every '
+          + 'new project picks it up automatically.');
+      return;
+    }
+    const internalCount = parsed.filter(t => t.isInternal).length;
+    const ok = confirm(
+      `Import ${parsed.length} trade${parsed.length === 1 ? '' : 's'}?\n\n`
+      + `• "${parsed[0].name}" will be the Preliminaries & General trade (first row).\n`
+      + `• ${internalCount} trade${internalCount === 1 ? '' : 's'} marked for Internal Pricing.\n\n`
+      + 'This replaces the trade list on this project, and becomes the standard starting list for '
+      + 'every new project in your organisation. Projects already created keep their own trades.');
+    if (!ok) return;
+
+    state.trades = freshTradesFromOrgTemplate(parsed);
+    saveOrgTradeList(parsed);
+    scheduleSave();
+    renderTrades();
+    renderSummaryBody();
+    updateFinalTotals();
+    alert(`Imported ${parsed.length} trades.`);
+  };
+  reader.onerror = () => alert('Could not read that file.');
+  reader.readAsText(file);
+}
 // One record per subcontractor engaged on the project. Overview fields (company,
 // linked trade, contact, status, contract sum) are edited from the Subcontractors
 // list view. The nested objects/arrays below are scaffolded now so later phases
@@ -11202,7 +11378,15 @@ function authGate(){
           // worksheet. Genuinely blank if the organisation hasn't imported
           // one yet — no hardcoded rates ship to a new customer. Also seeds
           // the Job Number claimed just above, if any.
-          seed_data: Object.assign({ project: { name, jobNumber } }, freshPgFromOrgTemplate(await fetchOrgPgTemplate(profile.organisation_id)))
+          seed_data: Object.assign(
+            { project: { name, jobNumber } },
+            freshPgFromOrgTemplate(await fetchOrgPgTemplate(profile.organisation_id)),
+            // Rev49: seed this organisation's own trade list + cost codes.
+            // Null (nothing imported yet, or migration not run) leaves trades
+            // out of seed_data entirely, so freshState()'s freshTrades()
+            // built-in list still applies — same fail-open as the P&G template.
+            (orgTrades => orgTrades ? { trades: orgTrades } : {})(
+              freshTradesFromOrgTemplate(await fetchOrgTradeList(profile.organisation_id))))
         });
         if (e2){ document.getElementById('ag-newproj-msg').textContent = e2.message; return; }
         selectProject(newProjectId, name);
@@ -30748,7 +30932,12 @@ function wireStaticEvents(){
           // organisation_pg_template — see fetchOrgPgTemplate()) alongside
           // the project name and the Job Number claimed just above.
           // Genuinely blank if the organisation hasn't imported one yet.
-          seed_data: Object.assign({ project: { name: name.trim(), jobNumber } }, freshPgFromOrgTemplate(await fetchOrgPgTemplate(profile.organisation_id)))
+          seed_data: Object.assign(
+            { project: { name: name.trim(), jobNumber } },
+            freshPgFromOrgTemplate(await fetchOrgPgTemplate(profile.organisation_id)),
+            // Rev49 — see the matching comment in the first-project flow above.
+            (orgTrades => orgTrades ? { trades: orgTrades } : {})(
+              freshTradesFromOrgTemplate(await fetchOrgTradeList(profile.organisation_id))))
         });
         if (error) throw error;
         sessionStorage.setItem('exstructa_project_id', newProjectId);
@@ -30930,6 +31119,12 @@ function wireStaticEvents(){
   });
 
   document.getElementById('load-pg-template').addEventListener('click', () => loadPgTemplateIntoWorksheet());
+  document.getElementById('import-trades-csv').addEventListener('click', () => document.getElementById('trades-csv-file-input').click());
+  document.getElementById('trades-csv-file-input').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // reset so re-selecting the same file still fires 'change'
+    if (file) importTradeListCsvFile(file);
+  });
   document.getElementById('import-pg-csv').addEventListener('click', () => document.getElementById('pg-csv-file-input').click());
   document.getElementById('pg-csv-file-input').addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
