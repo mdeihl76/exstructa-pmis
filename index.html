@@ -255,7 +255,7 @@
        overflow instead of just clipping it. Together, this is the only part
        of the sidebar that's allowed to shrink and scroll when the window is
        too short for everything — .side-brand above and .side-actions below
-       (Invite teammate / Log out) keep their normal min-height:auto floor,
+       (theme toggle / Log out) keep their normal min-height:auto floor,
        so they can never be squeezed out of view. Fixes Log out becoming
        unreachable on shorter windows, without changing anything about how
        the sidebar looks when everything already fits. Kept as a safety net
@@ -1975,6 +1975,27 @@
     background:var(--paper);border:1px solid var(--line);border-radius:10px;
     padding:14px 16px 0;margin:14px 0 6px;
   }
+  /* Rev53: Admin → Users invite panel. Same box treatment as .hs-header-box
+     above so it reads as one grouped form rather than loose controls sitting
+     above the members table. */
+  .admin-invite-box{
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;margin:0 0 22px;
+  }
+  /* Scrolls once an organisation has more projects than fit — a long list
+     shouldn't push the members table off the screen. */
+  .admin-invite-projects{
+    display:flex;flex-wrap:wrap;gap:8px 18px;
+    max-height:132px;overflow-y:auto;
+  }
+  .admin-invite-projects label{
+    display:flex;align-items:center;gap:6px;
+    font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .admin-invite-projects input[type=checkbox]{width:auto;margin:0;cursor:pointer;}
+  /* .btn is width:100% elsewhere in the app, which stretched this one across
+     half the panel. Pin it to its own text width instead. */
+  #admin-invite-send{flex:0 0 auto;width:auto;padding-left:22px;padding-right:22px;}
   #view-hs-detail .hs-header-box .vo-report-bar,
   #view-hs-incident-detail .hs-header-box .vo-report-bar{
     background:transparent;border:none;border-radius:0;padding:0;margin:0 0 14px;
@@ -4889,13 +4910,10 @@
       <svg id="theme-icon-dark" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none;"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"></path></svg>
       <span id="theme-toggle-label">Dark theme</span>
     </button>
-    <!-- Hidden by default and revealed only for org admins by
-         applyToolVisibility(), the same treatment #tab-admin gets. Defaulting
-         to hidden rather than shown means a non-admin never sees it flash
-         before permissions resolve, and if the permission check can't be
-         reached at all it stays hidden rather than briefly offering an action
-         the user isn't entitled to. -->
-    <button class="btn btn-ghost-dark" id="btn-invite" style="font-size:10.5px;display:none;">Invite teammate</button>
+    <!-- Rev53: the "Invite teammate" button that used to sit here has moved to
+         Admin -> Users. It was in the actions cluster beside the theme toggle
+         and Log out (session/account controls), and had no project picker — it
+         silently used whichever project was open. -->
     <button class="btn btn-ghost-dark" id="btn-logout" style="font-size:10.5px;">Log out</button>
     <div id="save-indicator"></div>
     <div style="text-align:center;font-size:9.5px;letter-spacing:.06em;color:#5c6266;margin-top:6px;">Powered by Squared</div>
@@ -7784,7 +7802,31 @@
 
       <!-- USERS -->
       <div class="admin-section" id="admin-section-users" style="display:none;">
-        <p class="field-note" style="margin:0 0 14px;">Every member of your organisation, which Permission Group(s) they hold, which projects they belong to, and their Timesheet discipline (used to cost their time — see Charge-Out Rates). Project membership itself is managed via "Invite teammate" on each project — this is read-only here.</p>
+        <!-- Rev53: invites moved here from the sidebar's actions cluster (where
+             they sat beside the theme toggle and Log out). Adding someone to
+             the organisation belongs with the list of who's already in it —
+             you want to see the existing members while doing it, and you'll
+             normally assign a Permission Group immediately afterwards, which
+             is right below. The sidebar button had no project picker: it
+             silently used whichever project happened to be open, which made
+             it read as an organisation-wide action when it isn't. Choosing
+             projects explicitly makes the real behaviour visible, and allows
+             several at once — a new staff member usually joins more than one
+             job, which previously meant one invite each. -->
+        <div class="admin-invite-box">
+          <h4 style="margin:0 0 4px;font-size:14px;">Invite someone to your organisation</h4>
+          <p class="field-note" style="margin:0 0 12px;">They'll join your organisation and the projects you tick. If they don't have an account yet, the invite applies automatically when they sign up. Set their Permission Group(s) in the table below once they appear.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+            <input type="email" id="admin-invite-email" placeholder="name@company.co.nz" style="flex:1;min-width:220px;">
+            <button class="btn btn-teal" id="admin-invite-send" type="button" style="white-space:nowrap;">Send invite</button>
+          </div>
+          <div style="margin-top:12px;">
+            <label class="field-note" style="display:block;margin-bottom:6px;">Projects to add them to</label>
+            <div id="admin-invite-projects" class="admin-invite-projects"></div>
+          </div>
+          <div id="admin-invite-status" style="margin-top:10px;font-size:12.5px;"></div>
+        </div>
+        <p class="field-note" style="margin:0 0 14px;">Every member of your organisation, which Permission Group(s) they hold, which projects they belong to, and their Timesheet discipline (used to cost their time — see Charge-Out Rates). Permission Group(s) and Discipline are editable here; add people using the panel above.</p>
         <div class="scrollx"><table class="data" id="admin-users-table">
           <thead><tr><th>Email</th><th>Permission Group(s)</th><th>Projects</th><th style="width:180px;">Discipline</th></tr></thead>
           <tbody id="admin-users-body"></tbody>
@@ -12690,18 +12732,10 @@ function applyToolVisibility(){
   });
   const adminBtn = document.getElementById('tab-admin');
   if (adminBtn) adminBtn.style.display = AM_I_ORG_ADMIN ? '' : 'none';
-  // Rev51: "Invite teammate" is admin-only. It sat in the sidebar actions
-  // next to Log out, so any user at all could add someone to the project and
-  // hand them a role — including 'owner' — with nothing checking whether they
-  // were entitled to. Gated the same way as the Admin tool and Directory
-  // editing directly above/below, rather than by Permission Group: adding
-  // people is an administrative act, not one of the everyday tools a group
-  // grants. NOTE: this only removes the control from the UI. Whether a
-  // non-admin can still reach invite_user_to_project by other means depends
-  // on that function's own checks, server-side — see the note in the app's
-  // handover documentation.
-  const inviteBtn = document.getElementById('btn-invite');
-  if (inviteBtn) inviteBtn.style.display = AM_I_ORG_ADMIN ? '' : 'none';
+  // Rev53: the Rev51 gate on the sidebar's "Invite teammate" button was removed
+  // with the button itself. Inviting now lives inside Admin -> Users, which the
+  // adminBtn line above already restricts to org admins — and the RPC behind it
+  // is org-admin gated server-side too (invite_org_admin_migration.sql).
   // Directory: admin-only editing (see the CSS rules under
   // body.directory-readonly, and the Directory HTML's readonly note).
   // Set once here since AM_I_ORG_ADMIN doesn't change mid-session.
@@ -12883,7 +12917,100 @@ async function deleteAdminGroup(groupId, groupName){
    projects for their project list) rather than a single combined query —
    simpler to keep each RLS-guarded table's own policy doing exactly one
    job, matching how the rest of this app's org-level features are built. */
+/* ---- Admin → Users: invite (Rev53) ----
+   Replaces the old sidebar "Invite teammate" button. invite_user_to_project()
+   is per-project by design — it adds the person to that project AND links
+   their profile to the organisation — so inviting to several projects is
+   several calls. They're run in sequence rather than in parallel: the first
+   one is what actually attaches the profile to the organisation, and letting
+   the rest race against it risks them resolving against a profile that isn't
+   linked yet.
+
+   The RPC is org-admin gated server-side (invite_org_admin_migration.sql) and
+   this whole section only renders for an org admin, so there's no additional
+   permission check needed here. */
+async function renderAdminInviteProjects(){
+  const box = document.getElementById('admin-invite-projects');
+  if (!box) return;
+  box.innerHTML = '<span class="field-note">Loading projects…</span>';
+  try{
+    const { data, error } = await supabaseClient
+      .from('projects').select('id, name').eq('organisation_id', CURRENT_ORG_ID).order('name');
+    if (error) throw error;
+    if (!data || !data.length){
+      box.innerHTML = '<span class="field-note">No projects yet — create one first, then invite people to it.</span>';
+      return;
+    }
+    box.innerHTML = '';
+    data.forEach(p => {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = p.id;
+      const span = document.createElement('span');
+      span.textContent = p.name || '(untitled project)';
+      label.appendChild(cb);
+      label.appendChild(span);
+      box.appendChild(label);
+    });
+  }catch(e){
+    console.warn('renderAdminInviteProjects: could not load projects', e);
+    box.innerHTML = '<span class="field-note">Could not load the project list.</span>';
+  }
+}
+
+async function sendAdminInvite(){
+  const emailInput = document.getElementById('admin-invite-email');
+  const statusEl = document.getElementById('admin-invite-status');
+  const btn = document.getElementById('admin-invite-send');
+  const email = (emailInput.value || '').trim();
+  const setStatus = (msg, ok) => {
+    statusEl.textContent = msg;
+    statusEl.style.color = ok === undefined ? 'var(--muted)' : (ok ? 'var(--good, #1a7f5a)' : 'var(--bad, #b3261e)');
+  };
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+    setStatus('Enter a valid email address.', false);
+    return;
+  }
+  const checked = Array.from(document.querySelectorAll('#admin-invite-projects input[type=checkbox]:checked'));
+  if (!checked.length){
+    setStatus('Tick at least one project to add them to.', false);
+    return;
+  }
+
+  btn.disabled = true;
+  setStatus('Sending…');
+  const results = [];
+  // Sequential on purpose — see the note above.
+  for (const cb of checked){
+    const projectName = cb.parentElement.querySelector('span').textContent;
+    try{
+      const { data, error } = await supabaseClient.rpc('invite_user_to_project', {
+        target_project_id: cb.value,
+        invite_email: email
+      });
+      if (error) throw error;
+      results.push({ projectName, message: data, ok: true });
+    }catch(e){
+      results.push({ projectName, message: e.message || 'failed', ok: false });
+    }
+  }
+  btn.disabled = false;
+
+  const failed = results.filter(r => !r.ok);
+  if (!failed.length){
+    setStatus(`${email} added to ${results.length} project${results.length === 1 ? '' : 's'}. Set their Permission Group(s) below.`, true);
+    emailInput.value = '';
+    document.querySelectorAll('#admin-invite-projects input[type=checkbox]:checked').forEach(cb => { cb.checked = false; });
+  } else {
+    setStatus(failed.map(r => `${r.projectName}: ${r.message}`).join(' · '), false);
+  }
+  // Refresh the members table either way — a partial success still changed it.
+  loadAndRenderAdminUsers();
+}
+
 async function loadAndRenderAdminUsers(){
+  renderAdminInviteProjects();
   const body = document.getElementById('admin-users-body');
   body.innerHTML = `<tr><td colspan="4" style="color:var(--muted);font-style:italic;">Loading…</td></tr>`;
   try{
@@ -30819,24 +30946,13 @@ function wireStaticEvents(){
     setTheme(current === 'dark' ? 'light' : 'dark');
   });
 
-  document.getElementById('btn-invite').addEventListener('click', async () => {
-    // Rev52: the role prompt is gone. It offered owner/admin/editor/viewer as
-    // free text, but three of the four were wrong to offer: 'viewer' can open
-    // a project and then fails every save (the app's saves are UPDATEs on
-    // projects, which RLS restricts to editor and above), and admin/owner let
-    // the invitee manage membership — including re-inviting themselves as
-    // owner. invite_user_to_project() now always adds people as 'editor', the
-    // minimum role at which the app actually works, and requires the CALLER to
-    // be an organisation admin. What each person can then see and do is
-    // governed by their Permission Group(s), not by this role.
-    const email = prompt('Email address to invite to this project:');
-    if (!email || !email.trim()) return;
-    const { data, error } = await supabaseClient.rpc('invite_user_to_project', {
-      target_project_id: CURRENT_PROJECT_ID,
-      invite_email: email.trim()
-    });
-    if (error){ alert('Could not invite: ' + error.message); return; }
-    alert(data);
+  // Rev53: invites are wired in Admin -> Users now (sendAdminInvite), not from
+  // the sidebar. The RPC always assigns 'editor' — the minimum role at which
+  // the app works, since saves are UPDATEs on projects and RLS restricts those
+  // to editor and above — and requires the caller to be an organisation admin.
+  document.getElementById('admin-invite-send').addEventListener('click', () => sendAdminInvite());
+  document.getElementById('admin-invite-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); sendAdminInvite(); }
   });
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
