@@ -8972,49 +8972,22 @@ function updatePgFixCostCodesVisibility(){
   btn.style.display = hasBlank ? '' : 'none';
 }
 
-const CONTACTS_DEFAULT = [
-["Internal","IPM Group","Warren Green","021 719 468","ipml@ipml.co.nz"],
-["Internal","IPM Group","Mat Deihl","0274 232 339","mat@ipml.co.nz"],
-["Internal","IPM Group","Paula Smith","027 288 1999","ipmladmin@ipml.co.nz"],
-["Mechanical","1st Mechanical Services","George Reed","027 255 5675",""],
-["Engineering","A&S Engineering","Jim Marsh","09 415 7343","jim@asengineering.co.nz"],
-["Roofing","Active Roofing","Steve Davies","021 410 257","steve@activeroofing.co.nz"],
-["Timber","Albany Timber","Kevin Erceg","027 472 4533",""],
-["Tiling","APT Tiling","Anthony","09 836 8827","info@aptgroup.co.nz"],
-["Fire Services","Argus","Clint Monk","027 536 5400","cmonk@argusfire.co.nz"],
-["Joinery","Asona","Juan Sandoval","09 525 6579","juan@asona.co.nz"],
-["Carpets","Beejay Carpets","Sean Leigh","021 227 4133","sean@beejaycarpets.co.nz"],
-["Concrete","BPS Concrete Ltd","Pat Walsh","027 495 2179","bpsconcrete@xtra.co.nz"],
-["Cabinetry","Cabtec","Peter Burgess","09 431 0022","peter@cabtec.co.nz"],
-["Electrical","Callander Electrics","Chris Schoeman","09 846 0154","chris@callander.co.nz"],
-["Cabling","Comserve Cabling","Scott McMertrie","021 483 334","scott@comserve.co.nz"],
-["Consultants","Consultus Ltd","David Bowes","021 385 365","consultusltd@xtra.co.nz"],
-["Flooring","Crown Flooring","Stuart","027 299 6475","stuart@crownflooring.co.nz"],
-["Electrical","D&T Electrical","Darren Miller","021 757 638","darren@dtelectrical.co.nz"],
-["Painting","Derek Jones Painting Contractors","Derek Jones","027 492 1848","derekjonespainting@xtra.co.nz"],
-["Doors","Doors n More","Daniel Simpkin","09 439 4910","sales@doorsnmore.co.nz"],
-["Architects","Eden Architects","Hamish Gray","027 297 0575","hamish@edenarchitects.co.nz"],
-["Security","Edge Security Professionals","Tim Muller","021 993 593","tim@edgesecurityltd.com"],
-["Roofing","Eziform Roofing Products","John Lewis","021 712 929","john@eziform.co.nz"],
-["Fire Services","Fire Security Services","Paul Callan","027 521 7992","paulc@firesecurity.co.nz"],
-["Glazing","Frosted Glass By Design","Conrad Williams","021 781 899","costings@frostedglass.co.nz"],
-["Linings","Global Linings","Lance Hohneck","021 749 566","lance@gl.co.nz"],
-["Plumbing","Hanlon Plumbing","Simon Hanlon","027 584 5989",""],
-["Hardware","Hardware Direct","Cris Laanbroek","09 837 1561","cris@hardwaredirect.co.nz"],
-["Glazing","Henderson Glass Ltd","Brent Meredith","09 836 1616","kiwiglass@xtra.co.nz"],
-["Plumbing","Heron Plumbing","Dale Lovell","09 836 4009","info@heronplumbing.co.nz"],
-["Waterproofing","NZ Waterproofing Specialists","Fred Alarcon","021 677 673","nzwaterproofingspecialists@xtra.co.nz"],
-["Painting","O Brien Decorators","Shay O'Brien","027 474 9999","shayobrien@gmail.com"],
-["Electrical","Phantom Electrical","Joshua King","021 579 679","phantomelec@xtra.co.nz"],
-["Building Supplies","Placemakers Cook St","Peter de Jong","09 356 2899",""],
-["Plasterboard","Plasterboard 2003","Jim Sirey","09 634 2666","plasterboard@vodafone.co.nz"],
-["Painting","RCS Painters","Darren Crawshaw","027 476 1801","darren.rcspainters@xtra.co.nz"],
-["Demolition","Scope Demolition","Andy O'Donnell","021 223 5155","",],
-["Doors","Scotty Doors","Graeme","09 479 4779","graeme@scottydoors.com"],
-["Ceilings","Shore Ceilings","Joe Buhagiar","09 415 8115","joeb@shoreceilings.co.nz"],
-["Aluminium","Summit Aluminium","Lance Tarrant","021 333 663","lance@summit-aluminium.co.nz"],
-["Welding","Total Fabrication Welding Ltd","Brendan Dickey","021 841 034","welder@clear.net.nz"]
-];
+/* The Directory's old hardcoded starter list (a real set of subcontractor and
+   staff names, mobile numbers and email addresses) was removed in Rev50.
+
+   It had already stopped seeding new projects — freshState() starts the
+   Directory empty — and by then survived only to power a one-time migration
+   that stripped those same entries from anyone still carrying them. That
+   migration was itself dead: loadOrgDirectory() runs after loadState() and
+   replaces state.directory wholesale from organisation_directory, so the
+   purge was operating on data that was discarded moments later. Both are now
+   gone, along with ~40 real people's contact details that were readable by
+   anyone who viewed source on this file, which is served publicly and without
+   authentication.
+
+   An organisation's Directory now comes only from what it enters or imports
+   (Directory → Import CSV), so nothing ships preloaded. Don't reintroduce a
+   hardcoded contact list here — use the org-level table instead. */
 /* ============ SEED STATE ============ */
 function freshRetentionBrackets(){
   // NZ standard retention brackets: 10% first 200k, 5% next 800k (to 1,000,000), 1.75% on the remainder
@@ -11414,7 +11387,7 @@ function authGate(){
 
     async function showOrgSetup(){
       box('<p class="ag-eyebrow">One more step</p><h2>Set up your organisation</h2>' +
-        '<div class="ag-field"><label>Company name</label><input id="ag-orgname" type="text" placeholder="e.g. IPM Group" /></div>' +
+        '<div class="ag-field"><label>Company name</label><input id="ag-orgname" type="text" placeholder="e.g. Your Construction Ltd" /></div>' +
         '<div class="ag-field"><label>First project name</label><input id="ag-projname" type="text" placeholder="Optional" /></div>' +
         '<button class="ag-btn-primary" id="ag-org-btn">Continue</button>' +
         '<p class="ag-msg err" id="ag-org-msg"></p>');
@@ -11715,27 +11688,13 @@ async function loadState(){
           if (p.roleOther === undefined) p.roleOther = '';
         });
       });
-      // migrate (one-time): earlier revisions seeded a brand-new Directory with a
-      // set of sample subcontractors from the original template file. That seed
-      // list is no longer used for new projects, but anyone who already had it
-      // saved has been carrying it forward — including through "Clear All Data",
-      // since the Directory is deliberately preserved across resets. Strip out
-      // only entries that still match the original template exactly (company +
-      // every person's name/phone/email untouched); anything edited or added by
-      // the user, even under the same company name, is left alone. Runs once.
-      if (!state.legacyDirectorySeedPurged){
-        const legacySignature = new Set(
-          CONTACTS_DEFAULT.map(r => (r[1] || '').trim().toLowerCase() + '|' + (r[2] || '').trim().toLowerCase() + '|' + formatNZPhone(r[3] || '').trim().toLowerCase() + '|' + (r[4] || '').trim().toLowerCase())
-        );
-        state.directory = state.directory.filter(d => {
-          if (!Array.isArray(d.people) || !d.people.length) return true;
-          const allMatchLegacy = d.people.every(p => legacySignature.has(
-            (d.company || '').trim().toLowerCase() + '|' + (p.name || '').trim().toLowerCase() + '|' + (p.phone || '').trim().toLowerCase() + '|' + (p.email || '').trim().toLowerCase()
-          ));
-          return !allMatchLegacy;
-        });
-        state.legacyDirectorySeedPurged = true;
-      }
+      // Rev50: the one-time purge of the old hardcoded Directory seed list was
+      // removed here along with the list itself. It could never have had any
+      // effect anyway — loadOrgDirectory() runs immediately after loadState()
+      // and replaces state.directory wholesale from organisation_directory, so
+      // anything this filtered was overwritten a moment later. Any
+      // state.legacyDirectorySeedPurged flag left on saved projects is now
+      // vestigial and simply ignored.
       if (!state.projectDirectory) state.projectDirectory = {};
       if (!state.projectDirectoryExtras) state.projectDirectoryExtras = [];
       // migrate: Project Directory rows (both trade-linked and manually-added
