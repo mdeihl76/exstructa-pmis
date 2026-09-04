@@ -26867,18 +26867,31 @@ async function commitDrawingImport(){
     const date = getVal('tag-date', i) || todayStr();
     const description = (getVal('tag-desc', i) || '').trim();
 
-    // Store the PDF bytes. For a combined set, every page-sheet references the
-    // same underlying file blob but records which page it is (pageIndexInFile).
+    // Store the PDF bytes. A combined set is genuinely split here — each page
+    // is cut out into its own single-page PDF (see extractSinglePagePdf) and
+    // stored as that sheet's own file, so the sheet is a real standalone
+    // drawing on disk and not just a page number pointing into a shared copy
+    // of the whole set. pageIndexInFile stays null in that case, which the
+    // viewer already reads as "this file IS the sheet".
     const fileKey = uid();
     let pageCountForRev = row.entryRef.pageCount;
     let pageIndexInFile = null;
+    let blob = null;
+    let storedName = row.entryRef.name;
     if (row.isCombinedPage){
-      pageIndexInFile = row.pageIndex;
-      pageCountForRev = 1; // this sheet is a single page of the combined file
+      pageCountForRev = 1; // this sheet is one page of the combined file
+      blob = await extractSinglePagePdf(row.entryRef.buffer, row.pageIndex);
+      if (blob){
+        storedName = splitSheetFilename(sheetNumber, row.entryRef.name);
+      } else {
+        // Split failed (encrypted/malformed PDF, or pdf-lib unavailable) —
+        // fall back to the old behaviour so the drawing still imports.
+        pageIndexInFile = row.pageIndex;
+      }
     }
+    if (!blob) blob = new Blob([row.entryRef.buffer.slice(0)], { type: 'application/pdf' });
     try {
-      const blob = new Blob([row.entryRef.buffer.slice(0)], { type: 'application/pdf' });
-      await DrawingStore.save(fileKey, blob, { filename: row.entryRef.name });
+      await DrawingStore.save(fileKey, blob, { filename: storedName });
     } catch(e){
       console.error('Failed to store PDF for', sheetNumber, e);
       alert('Failed to store the PDF for ' + sheetNumber + '. Import aborted for this sheet.');
@@ -26921,6 +26934,46 @@ async function commitDrawingImport(){
   document.getElementById('drawings-file-input').value = '';
   scheduleSave();
   renderDrawings();
+}
+
+/* ---- Combined-set page extraction (Rev47) ----
+   Cuts one page out of a multi-page PDF and returns it as its own standalone
+   single-page PDF Blob, via pdf-lib's copyPages (pdf-lib is already loaded for
+   the Completion / Defects "Combine into PDF" features).
+
+   Before this, importing a combined set stored a FULL COPY of the whole
+   multi-page file against every page-sheet, plus a pageIndexInFile number so
+   the viewer knew which page to open. That worked on screen, but a 40-sheet
+   60 MB set uploaded ~2.4 GB to Supabase Storage instead of ~60 MB, and any
+   path that hands over the stored file rather than rendering it — a share
+   link, a download — gave the recipient the entire set instead of the one
+   sheet they asked for.
+
+   Returns null if the split can't be done (pdf-lib missing, or an encrypted /
+   malformed PDF). Both callers fall back to storing the whole file with
+   pageIndexInFile set — i.e. exactly the old behaviour — so a failure here
+   degrades to "as before" rather than losing the drawing. */
+async function extractSinglePagePdf(arrayBuffer, pageIndex){
+  if (typeof PDFLib === 'undefined') return null;
+  try {
+    const src = await PDFLib.PDFDocument.load(arrayBuffer.slice(0), { ignoreEncryption: true });
+    if (pageIndex < 0 || pageIndex >= src.getPageCount()) return null;
+    const out = await PDFLib.PDFDocument.create();
+    const [page] = await out.copyPages(src, [pageIndex]);
+    out.addPage(page);
+    const bytes = await out.save();
+    return new Blob([bytes], { type: 'application/pdf' });
+  } catch(e){
+    console.warn('Could not split page', pageIndex + 1, 'out of the combined PDF:', e);
+    return null;
+  }
+}
+/* Names a split-out sheet's stored file after the sheet itself rather than the
+   combined file it came from, so a downloaded or shared drawing arrives as
+   "A-101.pdf" rather than "Architectural Set Rev C.pdf". */
+function splitSheetFilename(sheetNumber, fallbackName){
+  const base = (sheetNumber || '').trim();
+  return base ? base.replace(/[\\/:*?"<>|]/g, '-') + '.pdf' : fallbackName;
 }
 
 function stripPdfExt(name){ return (name || '').replace(/\.pdf$/i, ''); }
@@ -28267,8 +28320,15 @@ async function deleteCDrawingSheet(sheetId){
   renderCDrawings();
 }
 
+/* Rev47: these two said switchTab('drawings') — the TAKEOFF tool — not
+   'cdrawings'. A leftover from the Rev5 split, where the token-rename pipeline
+   renamed identifiers but not the string literals passed to switchTab(). The
+   effect: opening a sheet's revisions from the Drawings register also unhid
+   the Takeoff register underneath it (so Takeoff's drawings appeared alongside
+   the sheet you opened) and retitled the page "Takeoff"; closing it dropped
+   you into the Takeoff tool entirely, having started in Drawings. */
 function openCDrawingDetail(sheetId){
-  switchTab('drawings');
+  switchTab('cdrawings');
   cdrawingDetailSheetId = sheetId;
   document.getElementById('view-cdrawings').style.display = 'none';
   document.getElementById('view-cdrawing-detail').style.display = '';
@@ -28279,7 +28339,7 @@ function openCDrawingDetail(sheetId){
 function closeCDrawingDetail(){
   document.getElementById('view-cdrawing-detail').style.display = 'none';
   cdrawingDetailSheetId = null;
-  switchTab('drawings');
+  switchTab('cdrawings');
 }
 
 function renderCDrawingDetail(){
@@ -28537,18 +28597,31 @@ async function commitCDrawingImport(){
     const date = getVal('tag-date', i) || todayStr();
     const description = (getVal('tag-desc', i) || '').trim();
 
-    // Store the PDF bytes. For a combined set, every page-sheet references the
-    // same underlying file blob but records which page it is (pageIndexInFile).
+    // Store the PDF bytes. A combined set is genuinely split here — each page
+    // is cut out into its own single-page PDF (see extractSinglePagePdf) and
+    // stored as that sheet's own file, so the sheet is a real standalone
+    // drawing on disk and not just a page number pointing into a shared copy
+    // of the whole set. That matters most here: this is the tool whose sheets
+    // get issued and shared out to subcontractors.
     const fileKey = uid();
     let pageCountForRev = row.entryRef.pageCount;
     let pageIndexInFile = null;
+    let blob = null;
+    let storedName = row.entryRef.name;
     if (row.isCombinedPage){
-      pageIndexInFile = row.pageIndex;
-      pageCountForRev = 1; // this sheet is a single page of the combined file
+      pageCountForRev = 1; // this sheet is one page of the combined file
+      blob = await extractSinglePagePdf(row.entryRef.buffer, row.pageIndex);
+      if (blob){
+        storedName = splitSheetFilename(sheetNumber, row.entryRef.name);
+      } else {
+        // Split failed (encrypted/malformed PDF, or pdf-lib unavailable) —
+        // fall back to the old behaviour so the drawing still imports.
+        pageIndexInFile = row.pageIndex;
+      }
     }
+    if (!blob) blob = new Blob([row.entryRef.buffer.slice(0)], { type: 'application/pdf' });
     try {
-      const blob = new Blob([row.entryRef.buffer.slice(0)], { type: 'application/pdf' });
-      await CDrawingStore.save(fileKey, blob, { filename: row.entryRef.name });
+      await CDrawingStore.save(fileKey, blob, { filename: storedName });
     } catch(e){
       console.error('Failed to store PDF for', sheetNumber, e);
       alert('Failed to store the PDF for ' + sheetNumber + '. Import aborted for this sheet.');
