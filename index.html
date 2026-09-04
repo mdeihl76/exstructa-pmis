@@ -4889,7 +4889,13 @@
       <svg id="theme-icon-dark" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none;"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"></path></svg>
       <span id="theme-toggle-label">Dark theme</span>
     </button>
-    <button class="btn btn-ghost-dark" id="btn-invite" style="font-size:10.5px;">Invite teammate</button>
+    <!-- Hidden by default and revealed only for org admins by
+         applyToolVisibility(), the same treatment #tab-admin gets. Defaulting
+         to hidden rather than shown means a non-admin never sees it flash
+         before permissions resolve, and if the permission check can't be
+         reached at all it stays hidden rather than briefly offering an action
+         the user isn't entitled to. -->
+    <button class="btn btn-ghost-dark" id="btn-invite" style="font-size:10.5px;display:none;">Invite teammate</button>
     <button class="btn btn-ghost-dark" id="btn-logout" style="font-size:10.5px;">Log out</button>
     <div id="save-indicator"></div>
     <div style="text-align:center;font-size:9.5px;letter-spacing:.06em;color:#5c6266;margin-top:6px;">Powered by Squared</div>
@@ -12684,6 +12690,18 @@ function applyToolVisibility(){
   });
   const adminBtn = document.getElementById('tab-admin');
   if (adminBtn) adminBtn.style.display = AM_I_ORG_ADMIN ? '' : 'none';
+  // Rev51: "Invite teammate" is admin-only. It sat in the sidebar actions
+  // next to Log out, so any user at all could add someone to the project and
+  // hand them a role — including 'owner' — with nothing checking whether they
+  // were entitled to. Gated the same way as the Admin tool and Directory
+  // editing directly above/below, rather than by Permission Group: adding
+  // people is an administrative act, not one of the everyday tools a group
+  // grants. NOTE: this only removes the control from the UI. Whether a
+  // non-admin can still reach invite_user_to_project by other means depends
+  // on that function's own checks, server-side — see the note in the app's
+  // handover documentation.
+  const inviteBtn = document.getElementById('btn-invite');
+  if (inviteBtn) inviteBtn.style.display = AM_I_ORG_ADMIN ? '' : 'none';
   // Directory: admin-only editing (see the CSS rules under
   // body.directory-readonly, and the Directory HTML's readonly note).
   // Set once here since AM_I_ORG_ADMIN doesn't change mid-session.
