@@ -1735,7 +1735,7 @@
     background:none;border:none;color:#b26a00;font-size:10.5px;font-weight:600;cursor:pointer;
     padding:2px 0 0;text-decoration:underline;display:block;
   }
-  #takeoff-picker, #photo-attach-picker, #drawing-attach-picker, #cdrawing-attach-picker, #cdrawing-takeoff-picker, #completion-common-items-picker, #completion-split-picker, #nonworkingdays-modal, #defect-modal{
+  #takeoff-picker, #photo-attach-picker, #drawing-attach-picker, #cdrawing-attach-picker, #cdrawing-takeoff-picker, #completion-common-items-picker, #completion-split-picker, #nonworkingdays-modal, #defect-modal, #admin-projects-modal{
     position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.45);
     display:none;align-items:center;justify-content:center;
   }
@@ -8627,6 +8627,34 @@
   </div>
 
   <!-- ============ DEFECT DETAIL (modal popup, see view-defects above) ============ -->
+  <!-- Rev54: Admin → Users project membership editor. Reuses the shared .tp-*
+       picker overlay (the same one Takeoff/Drawings/Defects use) rather than
+       adding a sixth modal style. A modal rather than checkboxes inline in the
+       Users table for three reasons: the table already has four columns and
+       would need horizontal scrolling once an org has a dozen projects;
+       reassigning is a tick plus an untick, which as inline controls would be
+       two separate writes with a visible half-state between them, whereas here
+       it's one Save; and the "last person on this project" warning reads
+       properly in a dialog but badly as an alert fired by a stray click in a
+       table. -->
+  <div id="admin-projects-modal" style="display:none;">
+    <div class="tp-panel" style="width:min(520px,94vw);max-height:82vh;">
+      <div class="tp-head">
+        <span>Projects for <span id="admin-projects-modal-who"></span></span>
+        <button class="tp-close" id="admin-projects-modal-close" type="button" title="Close">✕</button>
+      </div>
+      <div class="tp-sub">Tick the projects this person should have access to. They'll be added as an editor; what they can see and do is set by their Permission Group(s).</div>
+      <div class="tp-body">
+        <div id="admin-projects-modal-list" class="admin-invite-projects" style="max-height:none;flex-direction:column;gap:2px;"></div>
+        <div id="admin-projects-modal-status" style="margin-top:12px;font-size:12.5px;"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line);">
+        <button class="vo-back-btn" id="admin-projects-modal-cancel" type="button" style="margin:0;">Cancel</button>
+        <button class="btn btn-teal" id="admin-projects-modal-save" type="button" style="flex:0 0 auto;width:auto;padding-left:22px;padding-right:22px;">Save changes</button>
+      </div>
+    </div>
+  </div>
+
   <div id="defect-modal" style="display:none;">
     <div class="tp-panel" style="width:min(640px,94vw);max-height:88vh;">
       <div class="tp-head no-print">
@@ -13009,6 +13037,135 @@ async function sendAdminInvite(){
   loadAndRenderAdminUsers();
 }
 
+/* ---- Admin → Users: project membership (Rev54) ----
+   The Projects column used to be read-only text. It now summarises the same
+   list with an Edit link opening #admin-projects-modal.
+
+   Adds go through invite_user_to_project() (the same RPC the invite panel
+   uses — it's idempotent for someone already in the organisation) and removes
+   through remove_user_from_project() (see remove_from_project_migration.sql).
+   Both are org-admin gated server-side. Applied sequentially rather than in
+   parallel so a partial failure leaves a comprehensible state and one clear
+   error, rather than several racing writes and several alerts. */
+let adminProjectsModalState = null;
+
+function renderAdminUserProjectsCell(td, userId, email, projectIds, projectNames){
+  td.innerHTML = '';
+  const span = document.createElement('span');
+  span.style.color = 'var(--muted)';
+  span.textContent = projectNames.join(', ') || '—';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'linklike';
+  btn.textContent = 'Edit';
+  btn.style.cssText = 'background:none;border:none;padding:0;margin-left:8px;color:var(--accent-text,#0a7);cursor:pointer;font-size:12px;text-decoration:underline;width:auto;';
+  btn.addEventListener('click', () => openAdminProjectsModal(userId, email, projectIds));
+  td.appendChild(span);
+  td.appendChild(btn);
+}
+
+async function openAdminProjectsModal(userId, email, currentProjectIds){
+  const modal = document.getElementById('admin-projects-modal');
+  const list = document.getElementById('admin-projects-modal-list');
+  const status = document.getElementById('admin-projects-modal-status');
+  document.getElementById('admin-projects-modal-who').textContent = email || 'this person';
+  status.textContent = '';
+  list.innerHTML = '<span class="field-note">Loading projects…</span>';
+  modal.style.display = 'flex';
+
+  const isSelf = (userId === CURRENT_USER_ID);
+  adminProjectsModalState = { userId, email, before: new Set(currentProjectIds || []), isSelf };
+
+  try{
+    const { data, error } = await supabaseClient
+      .from('projects').select('id, name').eq('organisation_id', CURRENT_ORG_ID).order('name');
+    if (error) throw error;
+    list.innerHTML = '';
+    if (!data || !data.length){
+      list.innerHTML = '<span class="field-note">No projects in this organisation yet.</span>';
+      return;
+    }
+    data.forEach(p => {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = p.id;
+      cb.checked = adminProjectsModalState.before.has(p.id);
+      // Nobody can remove themselves — the RPC refuses it too. Ticking ON is
+      // still allowed, so an admin can add themselves to a project.
+      if (isSelf && cb.checked) cb.disabled = true;
+      const span = document.createElement('span');
+      span.textContent = (p.name || '(untitled project)') + (isSelf && cb.checked ? '  — you can\'t remove yourself' : '');
+      label.appendChild(cb); label.appendChild(span);
+      list.appendChild(label);
+    });
+  }catch(e){
+    console.warn('openAdminProjectsModal: could not load projects', e);
+    list.innerHTML = '<span class="field-note">Could not load the project list.</span>';
+  }
+}
+
+function closeAdminProjectsModal(){
+  document.getElementById('admin-projects-modal').style.display = 'none';
+  adminProjectsModalState = null;
+}
+
+async function saveAdminProjectsModal(){
+  if (!adminProjectsModalState) return;
+  const { userId, email, before } = adminProjectsModalState;
+  const status = document.getElementById('admin-projects-modal-status');
+  const saveBtn = document.getElementById('admin-projects-modal-save');
+  const boxes = Array.from(document.querySelectorAll('#admin-projects-modal-list input[type=checkbox]'));
+  const after = new Set(boxes.filter(b => b.checked).map(b => b.value));
+  const nameOf = id => {
+    const b = boxes.find(x => x.value === id);
+    return b ? b.parentElement.querySelector('span').textContent.split('  —')[0] : 'project';
+  };
+
+  const toAdd = [...after].filter(id => !before.has(id));
+  const toRemove = [...before].filter(id => !after.has(id));
+  if (!toAdd.length && !toRemove.length){ closeAdminProjectsModal(); return; }
+
+  if (toRemove.length && !confirm(
+      `Remove ${email} from ${toRemove.map(nameOf).join(', ')}?\n\n`
+      + 'They lose access to that project immediately. Any timesheet hours they have already '
+      + 'logged against it are unaffected and still cost to the job.')){
+    return;
+  }
+
+  saveBtn.disabled = true;
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Saving…';
+  const failures = [];
+  for (const id of toAdd){
+    try{
+      const { error } = await supabaseClient.rpc('invite_user_to_project', {
+        target_project_id: id, invite_email: email
+      });
+      if (error) throw error;
+    }catch(e){ failures.push(`${nameOf(id)}: ${e.message || 'could not add'}`); }
+  }
+  for (const id of toRemove){
+    try{
+      const { error } = await supabaseClient.rpc('remove_user_from_project', {
+        target_project_id: id, target_user_id: userId
+      });
+      if (error) throw error;
+    }catch(e){ failures.push(`${nameOf(id)}: ${e.message || 'could not remove'}`); }
+  }
+  saveBtn.disabled = false;
+
+  if (failures.length){
+    status.style.color = 'var(--bad, #b3261e)';
+    status.textContent = failures.join(' · ');
+    // Reload so the ticks reflect what actually happened, not what was asked for.
+    loadAndRenderAdminUsers();
+    return;
+  }
+  closeAdminProjectsModal();
+  loadAndRenderAdminUsers();
+}
+
 async function loadAndRenderAdminUsers(){
   renderAdminInviteProjects();
   const body = document.getElementById('admin-users-body');
@@ -13022,7 +13179,7 @@ async function loadAndRenderAdminUsers(){
       supabaseClient.from('profiles').select('id, email, discipline_id').eq('organisation_id', CURRENT_ORG_ID).order('email'),
       supabaseClient.from('organisation_permission_groups').select('id, name').eq('organisation_id', CURRENT_ORG_ID),
       supabaseClient.from('user_permission_groups').select('user_id, permission_group_id'),
-      supabaseClient.from('project_members').select('profile_id, projects(name, organisation_id)'),
+      supabaseClient.from('project_members').select('profile_id, project_id, projects(name, organisation_id)'),
       supabaseClient.from('organisation_charge_rates').select('id, discipline').eq('organisation_id', CURRENT_ORG_ID).order('discipline')
     ]);
     if (profErr) throw profErr;
@@ -13047,9 +13204,11 @@ async function loadAndRenderAdminUsers(){
     });
 
     const projectsByUser = Object.create(null);
+    const projectIdsByUser = Object.create(null);
     (membersData || []).forEach(m => {
       if (!m.projects || m.projects.organisation_id !== CURRENT_ORG_ID) return;
       (projectsByUser[m.profile_id] || (projectsByUser[m.profile_id] = [])).push(m.projects.name);
+      (projectIdsByUser[m.profile_id] || (projectIdsByUser[m.profile_id] = [])).push(m.project_id);
     });
 
     body.innerHTML = '';
@@ -13062,8 +13221,8 @@ async function loadAndRenderAdminUsers(){
       const tdEmail = document.createElement('td'); tdEmail.textContent = p.email || '(no email on file)';
       const tdGroups = document.createElement('td');
       renderAdminUserGroupCell(tdGroups, p.id, groupsByUser[p.id] || [], groupsData || []);
-      const tdProjects = document.createElement('td'); tdProjects.style.color = 'var(--muted)';
-      tdProjects.textContent = (projectsByUser[p.id] || []).join(', ') || '—';
+      const tdProjects = document.createElement('td');
+      renderAdminUserProjectsCell(tdProjects, p.id, p.email, projectIdsByUser[p.id] || [], projectsByUser[p.id] || []);
       const tdDiscipline = document.createElement('td');
       renderAdminUserDisciplineCell(tdDiscipline, p.id, p.discipline_id, ratesList);
       tr.appendChild(tdEmail); tr.appendChild(tdGroups); tr.appendChild(tdProjects); tr.appendChild(tdDiscipline);
@@ -30951,6 +31110,13 @@ function wireStaticEvents(){
   // the app works, since saves are UPDATEs on projects and RLS restricts those
   // to editor and above — and requires the caller to be an organisation admin.
   document.getElementById('admin-invite-send').addEventListener('click', () => sendAdminInvite());
+  document.getElementById('admin-projects-modal-save').addEventListener('click', () => saveAdminProjectsModal());
+  document.getElementById('admin-projects-modal-cancel').addEventListener('click', () => closeAdminProjectsModal());
+  document.getElementById('admin-projects-modal-close').addEventListener('click', () => closeAdminProjectsModal());
+  // Click the backdrop to dismiss, matching the other .tp-* pickers.
+  document.getElementById('admin-projects-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAdminProjectsModal();
+  });
   document.getElementById('admin-invite-email').addEventListener('keydown', e => {
     if (e.key === 'Enter'){ e.preventDefault(); sendAdminInvite(); }
   });
