@@ -1336,6 +1336,31 @@
      that still applies to trades, Included Sums, etc. Once it's priced it drops
      this class on the next render and takes its place in the table. */
   #budget-table .budget-pg-zero-row{display:none;}
+  /* ---- Cost Centre Breakdown ----
+     Every value cell on a Cost Control row is a drill-down into that column's
+     build-up (see openCcBreakdown()). Styled as a normal readout that only
+     shows it's clickable on hover, so the table still reads as a report at a
+     glance rather than a wall of links. Forecast to Complete keeps its own
+     existing .fc-link button and is deliberately NOT given this class. */
+  #budget-table .cc-drill{cursor:pointer;}
+  #budget-table .cc-drill:hover{background:var(--line-soft);box-shadow:inset 0 -1px 0 var(--accent);}
+  .cc-breakdown .cc-head{margin-bottom:18px;}
+  .cc-breakdown .cc-head h3{margin:0 0 2px;}
+  .cc-section{margin-bottom:26px;}
+  .cc-section-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    border-bottom:2px solid var(--line);padding-bottom:5px;margin-bottom:10px;
+  }
+  .cc-section-head h4{margin:0;font-size:14px;}
+  .cc-section-total{font-size:15px;font-weight:600;white-space:nowrap;}
+  .cc-breakdown .cc-empty{margin:0;color:var(--muted);font-style:italic;font-size:12.5px;}
+  .cc-breakdown .cc-note{margin-top:8px;}
+  /* The waterfall is a two-column list, not a data grid — left column takes
+     whatever it needs, the figures line up in a fixed right column. */
+  .cc-waterfall{max-width:420px;}
+  .cc-waterfall td:last-child{width:140px;}
+  /* Populated only during a full-breakdown print job (printFullBudgetBreakdown()). */
+  #budget-full-breakdown{display:none;}
   table.data input, table.data select{
     width:100%;border:1px solid transparent;background:transparent;font-family:inherit;font-size:12.5px;
     padding:5px 0;border-radius:5px;color:var(--ink);
@@ -3310,6 +3335,34 @@
     #budget-table th:nth-child(12), #budget-table td:nth-child(12){width:9% !important;}
     #budget-table th:nth-child(13), #budget-table td:nth-child(13){width:7% !important;}
     #budget-table th:nth-child(14), #budget-table td:nth-child(14){width:8% !important;}
+
+    /* Cost Centre Breakdown print. Two jobs share these rules:
+         1. Printing one cost centre from its own view (portrait — see the
+            setBudgetPrintOrientation(false) call in openCcBreakdown()).
+         2. "Print Full Breakdown" on Cost Control, which prints the landscape
+            summary table followed by #budget-full-breakdown holding every cost
+            centre's build-up (see printFullBudgetBreakdown()).
+       #budget-full-breakdown is display:none everywhere except during job 2,
+       so an ordinary "Print / Save as PDF" from Cost Control still prints the
+       summary table alone. */
+    #view-cc-breakdown .panel-card{border:none;box-shadow:none;padding:0;background:transparent;border-radius:0;}
+    body.budget-full-print #budget-full-breakdown{display:block;margin-top:26px;}
+    .cc-print-title{page-break-before:always;margin:0 0 18px;}
+    /* Each cost centre starts on a fresh line but NOT a fresh page — with a
+       20-section P&G template plus every priced trade, a page break per cost
+       centre would roughly double the page count for no extra information.
+       page-break-inside:avoid keeps a single centre's sections together where
+       they'll fit, which is the part that actually helps it read. */
+    .cc-breakdown{margin-bottom:22px;}
+    .cc-breakdown + .cc-breakdown{border-top:2px solid #999;padding-top:16px;}
+    .cc-section{page-break-inside:avoid;margin-bottom:16px;}
+    .cc-breakdown .cc-head h3{font-size:14px;}
+    .cc-breakdown table.cc-table{width:100%;max-width:720px;}
+    .cc-breakdown table.cc-table th, .cc-breakdown table.cc-table td{padding:3px 5px;font-size:9.5px;}
+    .cc-breakdown .cc-note{font-size:8.5px;}
+    .cc-breakdown .scrollx{overflow-x:visible;}
+    .cc-section-head h4{font-size:11px;}
+    .cc-section-total{font-size:11px;}
 
     /* Cash Flow Forecast print: row spacing tightened further — the summary
        and monthly-forecast table cells were already tightened above, but the
@@ -5419,7 +5472,8 @@
         <span id="budget-lock-status" class="page-sub" style="margin:0;"></span>
         <button class="btn btn-ghost-dark" id="budget-transfer-open" type="button" style="flex:none;">Budget Transfer</button>
         <button class="btn btn-ghost-dark" id="budget-lock-toggle" type="button" style="flex:none;">Lock Budget</button>
-        <button class="btn btn-teal" id="budget-print" type="button" style="flex:none;">Print / Save as PDF</button>
+        <button class="btn btn-ghost-dark" id="budget-print-full" type="button" style="flex:none;" title="Print this summary table followed by the full build-up of every cost centre that has a figure against it">Print Full Breakdown</button>
+        <button class="btn btn-teal" id="budget-print" type="button" style="flex:none;" title="Print the summary table only">Print / Save as PDF</button>
       </div>
       <div class="scrollx"><table class="data" id="budget-table">
         <thead><tr><th style="width:30px;">No.</th><th style="width:78px;">Cost Code</th><th style="width:120px;">Trade</th><th class="num" style="width:96px;">Budget</th><th class="num" style="width:96px;">Approved VOs</th><th class="num" style="width:96px;">Budget Transfer</th><th class="num" style="width:120px;">Revised Budget</th><th class="num" style="width:96px;">Committed</th><th class="num" style="width:96px;">Labour</th><th class="num" style="width:96px;">Sub VOs</th><th class="num" style="width:96px;">Pending POs</th><th class="num budget-fc-col" style="width:100px;">FC Complete</th><th class="num" style="width:92px;">Total FC</th><th class="num" style="width:96px;">Gain/Loss</th><th style="width:32px;"></th></tr></thead>
@@ -5427,7 +5481,12 @@
         <tfoot id="budget-foot"></tfoot>
       </table></div>
       <button class="addbtn" id="add-budget-line">+ Add line item</button>
-      <div class="note">Budget, Approved VOs, Revised Budget, Committed Cost, Labour, Subcontract VOs and Pending POs are all automatic figures: Budget from each trade's value on Trade Summary (or the Preliminaries &amp; General total); Committed Cost from Engaged/Complete subcontractors' contract sums plus closed Purchase Orders' invoiced amounts against the matching cost code; <strong>Labour</strong> from approved Timesheet hours booked to this project against the matching cost code, costed at each person's charge-out rate as it stood when their week was approved (see Admin &rarr; Timesheet Approvals and Charge-Out Rates); Subcontract VOs from that subcontractor's approved variations; Pending POs from the ordered value of open Purchase Orders against the matching cost code (see the Purchasing tab). <strong>Budget Transfer</strong> is the net of every completed transfer against that cost code — the only way money moves from one cost code to another; use the "Budget Transfer" button above to record one. <strong>Forecast to Complete</strong> is the only figure you set by hand — click its value to open that cost code's own Item / Description / Duration / Qty / Rate worksheet and build it up there; leave the worksheet empty to keep the automatic figure. Use "+ Add line item" for costs that don't come from a priced trade. Trade names and cost codes are fixed here — set them on Tender Analysis or the Preliminaries &amp; General worksheet. Click "Lock Budget" once pricing is finalised to prevent further changes (Forecast to Complete and Budget Transfer stay available); unlocking again needs the project PIN.</div>
+      <div class="note">Budget, Approved VOs, Revised Budget, Committed Cost, Labour, Subcontract VOs and Pending POs are all automatic figures: Budget from each trade's value on Trade Summary (or the Preliminaries &amp; General total); Committed Cost from Engaged/Complete subcontractors' contract sums plus closed Purchase Orders' invoiced amounts against the matching cost code; <strong>Labour</strong> from approved Timesheet hours booked to this project against the matching cost code, costed at each person's charge-out rate as it stood when their week was approved (see Admin &rarr; Timesheet Approvals and Charge-Out Rates); Subcontract VOs from that subcontractor's approved variations; Pending POs from the ordered value of open Purchase Orders against the matching cost code (see the Purchasing tab). <strong>Budget Transfer</strong> is the net of every completed transfer against that cost code — the only way money moves from one cost code to another; use the "Budget Transfer" button above to record one. <strong>Forecast to Complete</strong> is the only figure you set by hand — click its value to open that cost code's own Item / Description / Duration / Qty / Rate worksheet and build it up there; leave the worksheet empty to keep the automatic figure. Use "+ Add line item" for costs that don't come from a priced trade. Trade names and cost codes are fixed here — set them on Tender Analysis or the Preliminaries &amp; General worksheet. Click "Lock Budget" once pricing is finalised to prevent further changes (Forecast to Complete and Budget Transfer stay available); unlocking again needs the project PIN. <strong>Click any figure on a row</strong> to open that cost centre's full breakdown — every subcontractor, Purchase Order, variation, transfer and approved timesheet week making up each column — or use "Print Full Breakdown" above to print this summary followed by the build-up of every cost centre.</div>
+      <!-- Populated only while printing a full breakdown (see
+           printFullBudgetBreakdown()), then cleared again — hidden on screen
+           and off every ordinary print job via the .budget-full-print body
+           class, so "Print / Save as PDF" still prints the summary alone. -->
+      <div id="budget-full-breakdown"></div>
     </div>
   </div>
 
@@ -5474,6 +5533,21 @@
       </table></div>
       <button class="addbtn" id="add-fc-row">+ Add line item</button>
       <div class="note">Total = Duration × Qty × Rate. This total feeds the Forecast to Complete figure for this cost code back on the Budget worksheet — remove every line here to return to the automatic figure instead.</div>
+    </div>
+  </div>
+
+  <!-- ============ COST CENTRE BREAKDOWN ============
+       Read-only build-up of every Cost Control figure for one cost centre.
+       Reached by clicking any cell on a Cost Control row — see
+       openCcBreakdown()/renderCcBreakdown() and the header comment above them
+       for why each figure is recomputed here rather than passed across. -->
+  <div id="view-cc-breakdown" style="display:none;">
+    <div class="panel-card">
+      <div class="no-print" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:14px;">
+        <button class="btn btn-teal" id="cc-breakdown-print" type="button" style="flex:none;">Print / Save as PDF</button>
+        <button class="vo-back-btn" id="close-cc-breakdown" type="button">← Close &amp; return to Cost Control</button>
+      </div>
+      <div id="cc-breakdown-body"></div>
     </div>
   </div>
 
@@ -17656,6 +17730,11 @@ function renderBudget(){
   const body = document.getElementById('budget-body');
   body.innerHTML = '';
   updateBudgetLockUI();
+  /* Rebuilt from scratch every render, populated by addBudgetRow() below — the
+     Cost Centre Breakdown view reads this rather than working out the table's
+     rows for itself, so the two can never disagree. See the header comment
+     above openCcBreakdown(). */
+  budgetBreakdownLines = [];
   // runTransfer is declared for symmetry with the other running totals but
   // deliberately never accumulated (stays 0) — every transfer contributes exactly
   // +amount to one cost code and −amount to another, so summed across the whole
@@ -17701,7 +17780,35 @@ function renderBudget(){
      Column waterfall: Budget -> +Approved VOs -> Revised Budget; separately,
      Committed Cost + Subcontract VOs + Pending POs -> (gap to Revised Budget as
      Forecast to Complete) -> Total Forecast; Gain/Loss = Revised Budget - Total Forecast. */
-  function addBudgetRow({ numberText, codeCell, nameCell, rowLabel, budgetId, budgetDefault, committedDefault, subVODefault, costCode, actionsCell, isPg }){
+  /* Makes one value cell a drill-down into that column's own build-up (see
+     openCcBreakdown). The existing title tooltip is deliberately KEPT and
+     appended to rather than replaced — the tooltip explains the rule behind a
+     column, the breakdown explains the number in this particular cell, and a
+     first-time user who hasn't discovered the click yet would otherwise get no
+     hint at all about where the figure comes from. `anchor` is the breakdown
+     section to open scrolled to; omit it to open at the top. */
+  function ccDrill(cell, budgetId, anchor){
+    if (!cell) return cell;
+    cell.classList.add('cc-drill');
+    cell.title = (cell.title ? cell.title + ' — ' : '') + 'Click to see the build-up behind this figure.';
+    cell.addEventListener('click', () => openCcBreakdown(budgetId, anchor));
+    return cell;
+  }
+
+  function addBudgetRow({ numberText, codeCell, nameCell, rowLabel, budgetId, budgetDefault, committedDefault, subVODefault, costCode, actionsCell, isPg, source }){
+    /* Registered BEFORE the committedDefault line below reassigns it, so the
+       breakdown gets the row's own raw contribution (subcontract contract sums
+       for a trade, the typed figure for a manual line) and adds the closed-PO
+       share itself — it needs the two itemised separately, not pre-summed. */
+    budgetBreakdownLines.push({
+      budgetId: budgetId,
+      costCode: costCode || '',
+      label: rowLabel || '(untitled)',
+      budgetDefault: num(budgetDefault),
+      committedDefault: num(committedDefault),
+      subVODefault: num(subVODefault),
+      source: source || { type: 'unknown' }
+    });
     committedDefault = num(committedDefault) + committedPOByCostCode(costCode);
     subVODefault = subVODefault || 0;
     const bAmt = budgetOverride(budgetId, budgetDefault);
@@ -17745,56 +17852,56 @@ function renderBudget(){
     tdNo.textContent = numberText || '';
     tr.appendChild(tdNo);
 
-    tr.appendChild(codeCell || document.createElement('td'));
+    tr.appendChild(ccDrill(codeCell, budgetId) || document.createElement('td'));
 
-    tr.appendChild(nameCell);
+    tr.appendChild(ccDrill(nameCell, budgetId));
 
     const tdBudget = document.createElement('td');
     tdBudget.className = 'num readout';
     tdBudget.textContent = fmt(bAmt);
     tdBudget.title = 'Automatic — pulled from this trade\'s value on Trade Summary (or the Preliminaries & General total)';
-    tr.appendChild(tdBudget);
+    tr.appendChild(ccDrill(tdBudget, budgetId, 'budget'));
 
     const tdVO = document.createElement('td');
     tdVO.className = 'num readout';
     tdVO.textContent = fmt(voAmt);
     tdVO.title = 'Auto-populated from approved Variation Breakdown lines matching this cost code';
-    tr.appendChild(tdVO);
+    tr.appendChild(ccDrill(tdVO, budgetId, 'vos'));
 
     const tdTransfer = document.createElement('td');
     tdTransfer.className = 'num readout' + (transferAmt ? (transferAmt < 0 ? ' neg' : ' pos') : '');
     tdTransfer.textContent = transferAmt ? fmtSigned(transferAmt) : '—';
     tdTransfer.title = 'Net of every completed Budget Transfer against this cost code — the only way money moves between cost codes. Click "Budget Transfer" above to record one.';
-    tr.appendChild(tdTransfer);
+    tr.appendChild(ccDrill(tdTransfer, budgetId, 'transfer'));
 
     const tdRevBudget = document.createElement('td');
     tdRevBudget.className = 'num readout';
     tdRevBudget.textContent = fmt(revBudget);
-    tr.appendChild(tdRevBudget);
+    tr.appendChild(ccDrill(tdRevBudget, budgetId, 'summary'));
 
     const tdCommitted = document.createElement('td');
     tdCommitted.className = 'num readout';
     tdCommitted.textContent = fmt(cAmt);
     tdCommitted.title = 'Automatic — Engaged/Complete subcontractor(s)\' contract sum plus closed Purchase Orders\' invoiced amounts against this cost code';
-    tr.appendChild(tdCommitted);
+    tr.appendChild(ccDrill(tdCommitted, budgetId, 'committed'));
 
     const tdLabour = document.createElement('td');
     tdLabour.className = 'num readout';
     tdLabour.textContent = fmt(labourAmt);
     tdLabour.title = labourCellTitle(costCode);
-    tr.appendChild(tdLabour);
+    tr.appendChild(ccDrill(tdLabour, budgetId, 'labour'));
 
     const tdSubVO = document.createElement('td');
     tdSubVO.className = 'num readout';
     tdSubVO.textContent = fmt(subVOAmt);
     tdSubVO.title = 'Auto-populated from the linked subcontractor(s)\' approved variations (Claims & Variations)';
-    tr.appendChild(tdSubVO);
+    tr.appendChild(ccDrill(tdSubVO, budgetId, 'subvos'));
 
     const tdPO = document.createElement('td');
     tdPO.className = 'num readout';
     tdPO.textContent = fmt(poAmt);
     tdPO.title = 'Auto-populated from the ordered value of open Purchase Orders against this cost code';
-    tr.appendChild(tdPO);
+    tr.appendChild(ccDrill(tdPO, budgetId, 'pos'));
 
     const tdForecast = document.createElement('td');
     tdForecast.className = 'num budget-fc-col';
@@ -17810,12 +17917,12 @@ function renderBudget(){
     const tdTotalForecast = document.createElement('td');
     tdTotalForecast.className = 'num readout';
     tdTotalForecast.textContent = fmt(totalForecast);
-    tr.appendChild(tdTotalForecast);
+    tr.appendChild(ccDrill(tdTotalForecast, budgetId, 'summary'));
 
     const tdGL = document.createElement('td');
     tdGL.className = 'num readout ' + (gainLoss < 0 ? 'neg' : 'pos');
     tdGL.textContent = fmt(gainLoss);
-    tr.appendChild(tdGL);
+    tr.appendChild(ccDrill(tdGL, budgetId, 'summary'));
 
     tr.appendChild(actionsCell || document.createElement('td'));
 
@@ -17862,7 +17969,8 @@ function renderBudget(){
         committedDefault: approvedSubcontractorContractSumForTrade(t.id),
         subVODefault: subcontractorApprovedVOsForTrade(t.id),
         costCode: t.costCode,
-        actionsCell: document.createElement('td')
+        actionsCell: document.createElement('td'),
+        source: { type: 'trade', trade: t }
       });
       if (!hidden) anyBudgetLineVisible = true;
     } else {
@@ -17884,7 +17992,8 @@ function renderBudget(){
         subVODefault: 0,
         costCode: h.costCode,
         actionsCell: document.createElement('td'),
-        isPg: true
+        isPg: true,
+        source: { type: 'pg', heading: h }
       });
       if (!hidden) anyBudgetLineVisible = true;
     }
@@ -17917,6 +18026,21 @@ function renderBudget(){
     runB += bAmt; runVO += voAmt; runCommit += cAmt; runLabour += labourAmt; runSubVO += subVOAmt; runPO += poAmt;
     runForecast += forecastToComplete; runTotalForecast += totalForecast;
 
+    /* Manual extras build their row inline rather than through addBudgetRow()
+       (their Cost Code and Name cells are editable inputs, not readouts), so
+       they register themselves with the Cost Centre Breakdown here instead.
+       committedDefault is the row's own typed figure only — the closed-PO share
+       is added by the breakdown itself, which needs the two itemised apart. */
+    budgetBreakdownLines.push({
+      budgetId: x.id,
+      costCode: x.costCode || '',
+      label: x.name || '(untitled line item)',
+      budgetDefault: num(x.budget),
+      committedDefault: num(x.committed),
+      subVODefault: 0,
+      source: { type: 'extra', extra: x }
+    });
+
     const tr = document.createElement('tr');
 
     const tdNo = document.createElement('td');
@@ -17948,48 +18072,48 @@ function renderBudget(){
     tdBudget.className = 'num readout';
     tdBudget.textContent = fmt(bAmt);
     tdBudget.title = 'Manual line items have no automatic Budget source — set the cost via this row\'s Forecast to Complete worksheet instead';
-    tr.appendChild(tdBudget);
+    tr.appendChild(ccDrill(tdBudget, x.id, 'budget'));
 
     const tdVO = document.createElement('td');
     tdVO.className = 'num readout';
     tdVO.textContent = fmt(voAmt);
     tdVO.title = 'Auto-populated from approved Variation Breakdown lines matching this cost code';
-    tr.appendChild(tdVO);
+    tr.appendChild(ccDrill(tdVO, x.id, 'vos'));
 
     const tdTransfer = document.createElement('td');
     tdTransfer.className = 'num readout' + (transferAmt ? (transferAmt < 0 ? ' neg' : ' pos') : '');
     tdTransfer.textContent = transferAmt ? fmtSigned(transferAmt) : '—';
     tdTransfer.title = 'Net of every completed Budget Transfer against this cost code — the only way money moves between cost codes. Click "Budget Transfer" above to record one.';
-    tr.appendChild(tdTransfer);
+    tr.appendChild(ccDrill(tdTransfer, x.id, 'transfer'));
 
     const tdRevBudget = document.createElement('td');
     tdRevBudget.className = 'num readout';
     tdRevBudget.textContent = fmt(revBudget);
-    tr.appendChild(tdRevBudget);
+    tr.appendChild(ccDrill(tdRevBudget, x.id, 'summary'));
 
     const tdCommitted = document.createElement('td');
     tdCommitted.className = 'num readout';
     tdCommitted.textContent = fmt(cAmt);
     tdCommitted.title = 'Automatic — includes closed Purchase Orders\' invoiced amounts against this cost code';
-    tr.appendChild(tdCommitted);
+    tr.appendChild(ccDrill(tdCommitted, x.id, 'committed'));
 
     const tdLabour = document.createElement('td');
     tdLabour.className = 'num readout';
     tdLabour.textContent = fmt(labourAmt);
     tdLabour.title = labourCellTitle(x.costCode);
-    tr.appendChild(tdLabour);
+    tr.appendChild(ccDrill(tdLabour, x.id, 'labour'));
 
     const tdSubVO = document.createElement('td');
     tdSubVO.className = 'num readout';
     tdSubVO.textContent = fmt(subVOAmt);
     tdSubVO.title = 'Manual line items have no linked subcontractor';
-    tr.appendChild(tdSubVO);
+    tr.appendChild(ccDrill(tdSubVO, x.id, 'subvos'));
 
     const tdPO = document.createElement('td');
     tdPO.className = 'num readout';
     tdPO.textContent = fmt(poAmt);
     tdPO.title = 'Auto-populated from the ordered value of open Purchase Orders against this cost code';
-    tr.appendChild(tdPO);
+    tr.appendChild(ccDrill(tdPO, x.id, 'pos'));
 
     const tdForecast = document.createElement('td');
     tdForecast.className = 'num budget-fc-col';
@@ -18005,12 +18129,12 @@ function renderBudget(){
     const tdTotalForecast = document.createElement('td');
     tdTotalForecast.className = 'num readout';
     tdTotalForecast.textContent = fmt(totalForecast);
-    tr.appendChild(tdTotalForecast);
+    tr.appendChild(ccDrill(tdTotalForecast, x.id, 'summary'));
 
     const tdGL = document.createElement('td');
     tdGL.className = 'num readout ' + (gainLoss < 0 ? 'neg' : 'pos');
     tdGL.textContent = fmt(gainLoss);
-    tr.appendChild(tdGL);
+    tr.appendChild(ccDrill(tdGL, x.id, 'summary'));
 
     const tdActions = document.createElement('td');
     if (state.budgetLocked){
@@ -18063,7 +18187,8 @@ function renderBudget(){
         rowLabel: item.name || '(untitled included sum)',
         budgetId: item.id,
         budgetDefault: num(item.val),
-        costCode: item.costCode
+        costCode: item.costCode,
+        source: { type: 'included', item: item }
       });
     });
   }
@@ -18083,7 +18208,8 @@ function renderBudget(){
         rowLabel: item.name || '(untitled provisional sum)',
         budgetId: item.id,
         budgetDefault: num(item.val),
-        costCode: item.costCode
+        costCode: item.costCode,
+        source: { type: 'provisional', item: item }
       });
     });
   }
@@ -18106,7 +18232,8 @@ function renderBudget(){
       rowLabel: 'Contractors Margin',
       budgetId: 'contractors-margin',
       budgetDefault: marginAmount,
-      costCode: MARGIN_COST_CODE
+      costCode: MARGIN_COST_CODE,
+      source: { type: 'margin' }
     });
   }
 
@@ -18127,7 +18254,8 @@ function renderBudget(){
       rowLabel: 'Contractors Contingency',
       budgetId: 'contractors-contingency',
       budgetDefault: calc.contingency,
-      costCode: CONTINGENCY_COST_CODE
+      costCode: CONTINGENCY_COST_CODE,
+      source: { type: 'contingency' }
     });
   }
 
@@ -18176,7 +18304,8 @@ function renderBudget(){
         committedDefault: 0,
         subVODefault: 0,
         costCode: code,
-        actionsCell: document.createElement('td')
+        actionsCell: document.createElement('td'),
+        source: { type: 'labour-orphan' }
       });
     });
   }
@@ -18199,6 +18328,677 @@ function renderBudget(){
       <td class="num calc ${(totalRevBudget - runTotalForecast) < 0 ? 'neg' : 'pos'}">${money(totalRevBudget - runTotalForecast)}</td>
       <td></td>
     </tr>`;
+}
+
+/* ============ COST CENTRE BREAKDOWN (Rev55) ============
+   Every figure on the Cost Control table is a roll-up of something — approved
+   variation lines, subcontractor contract sums, closed/open Purchase Orders,
+   approved timesheet weeks, budget transfers, and (for the Budget column
+   itself) whichever worksheet priced that trade or P&G section in the first
+   place. Until now the only thing behind a cell was a hover tooltip explaining
+   the RULE ("auto-populated from approved Variation Breakdown lines matching
+   this cost code"), never the actual items making up the NUMBER, so answering
+   "why is this cost code $12k over?" meant opening four other tools and adding
+   up by hand.
+
+   This view is that build-up: one page per cost centre, one section per Cost
+   Control column, listing every contributing item and ending with the
+   Revised Budget -> Total Forecast -> Gain/Loss waterfall. It is read-only
+   throughout — nothing here edits anything, it just shows where each figure
+   came from, so it can never disagree with the Cost Control table it was
+   opened from.
+
+   Reached by clicking any cell on a Cost Control row (the cost code and trade
+   name open it at the top; a value cell opens it scrolled to that column's own
+   section). Forecast to Complete is the one exception: that column already has
+   its own editable worksheet, so its cell still opens that, and this view
+   links across to it rather than duplicating it.
+
+   The hover tooltips are deliberately KEPT rather than replaced — they explain
+   the rule, this explains the number, and a first-time user who hasn't
+   discovered the click yet would otherwise get no hint at all about where a
+   figure comes from.
+
+   IMPORTANT: every figure shown here is recomputed from the same functions
+   renderBudget() uses (approvedVOByCostCode, committedPOByCostCode,
+   labourByCostCode, and so on) rather than being passed across from the table
+   — the section ROWS are the itemisation, the section TOTAL is always the real
+   Cost Control figure. If an itemisation ever failed to add up to its total
+   that would be a genuine bug worth seeing, not something to paper over, which
+   is why the two are calculated independently. */
+
+// Which cost centre's breakdown is open (a budgetId — trade id, P&G heading id,
+// manual line item id, Included/Provisional Sum id, or one of the fixed
+// 'contractors-margin'/'contractors-contingency'/'labour-<code>' sentinels).
+let ccBreakdownId = null;
+/* Rebuilt from scratch on every renderBudget() — one entry per row actually
+   rendered on the Cost Control table, in the same order, carrying enough about
+   where that row's Budget figure came from to itemise it. Deliberately
+   populated BY addBudgetRow() rather than reconstructed separately here, so
+   the breakdown can never drift out of step with the table (a new budget
+   source added to renderBudget() in future automatically appears here too,
+   with an "unrecognised source" note rather than silently vanishing). */
+let budgetBreakdownLines = [];
+
+function ccFindLine(budgetId){
+  return budgetBreakdownLines.find(l => l.budgetId === budgetId) || null;
+}
+
+/* ---- Labour detail (see labour_detail_migration.sql) ----
+   loadProjectLabourCosts() above returns only a per-cost-code TOTAL (hours and
+   dollars), which is all the Cost Control table itself needs. Itemising that
+   total per person and per week needs a second, finer-grained RPC.
+
+   Readable by any signed-in member of the organisation that owns the project.
+   The rates it shows are commercial charge-out rates — what the job is costed
+   at, not what anyone is paid — so there's no reason to hide them from the
+   team. Cross-organisation reads are still refused by the RPC.
+
+   The "refused" path below is kept anyway: labour_detail_migration.sql
+   documents how to put an org-admin gate back on if that's ever wanted, and
+   this side already degrades gracefully to the correct total plus a short
+   note if it is.
+
+   Fails open exactly like every other migration-dependent feature in this file
+   (Directory, Job Number, timesheet costing): until the SQL has been run the
+   RPC doesn't exist, the call is caught and logged, and the Labour section
+   falls back to showing just the total. */
+let labourDetailByCostCode = Object.create(null); // cost code -> array of detail rows
+let labourDetailAvailable = false;                // true once the RPC has answered
+let labourDetailDenied = false;                   // true when the RPC answered but refused (see the note above)
+let labourDetailLoading = false;
+
+async function loadProjectLabourDetail(){
+  if (!CURRENT_PROJECT_ID || labourDetailLoading) return false;
+  labourDetailLoading = true;
+  try{
+    const { data, error } = await supabaseClient.rpc('project_labour_detail', { p_project_id: CURRENT_PROJECT_ID });
+    if (error) throw error;
+    const next = Object.create(null);
+    (data || []).forEach(r => {
+      const code = String(r.cost_code || '').trim();
+      if (!code) return;
+      (next[code] = next[code] || []).push({
+        person: r.person_name || r.person_email || '(person no longer in this organisation)',
+        weekStart: r.week_start || '',
+        discipline: r.discipline || '',
+        hours: num(r.hours),
+        rate: num(r.rate),
+        cost: num(r.cost)
+      });
+    });
+    labourDetailByCostCode = next;
+    labourDetailAvailable = true;
+    labourDetailDenied = false;
+  }catch(e){
+    // A permission refusal is told apart from "migration not run yet" so the
+    // Labour section can explain which of the two it is, rather than blaming
+    // a missing migration for what is actually a deliberate restriction.
+    const msg = String((e && (e.message || e.hint || e.code)) || '');
+    labourDetailDenied = /permission|denied|not authoris|not authoriz|admin/i.test(msg);
+    labourDetailAvailable = false;
+    if (!labourDetailDenied){
+      console.warn('loadProjectLabourDetail: per-person labour detail is not available (has labour_detail_migration.sql been run?) — Cost Centre Breakdown will show the Labour total only.', e);
+    }
+  }finally{
+    labourDetailLoading = false;
+  }
+  return labourDetailAvailable;
+}
+
+/* ---- Section builders ----
+   Each returns { columns, rows, note } or null. columns is an array of
+   { label, num } and every row is an array of already-formatted strings, so
+   the renderer below stays free of any per-section special cases. */
+
+function ccCols(){ return Array.prototype.slice.call(arguments); }
+function ccCol(label, isNum){ return { label: label, num: !!isNum }; }
+
+/* Budget — where this row's Budget figure was priced. Depends on what kind of
+   Cost Control row it is (see budgetBreakdownLines above). */
+function ccBudgetSection(line){
+  const src = line.source || {};
+  const adjPct = num(state.tradeAdjustPct);
+  const adjNote = adjPct
+    ? 'Trade Adjust % of ' + fmt2(adjPct) + '% (set on Trade Summary) is applied on top of the worksheet subtotal, and is shown as its own line so the two figures reconcile.'
+    : '';
+
+  /* Trade Summary's global Trade Adjust % sits between a worksheet's own
+     subtotal and the Budget figure Cost Control shows. Left implicit, this
+     section would print a subtotal that visibly disagrees with its own header
+     total — exactly the kind of unexplained gap the whole view exists to
+     close — so the uplift gets its own row and the subtotal becomes the real
+     Cost Control figure. */
+  function withAdjust(rows, cols, baseValue, baseLabel){
+    const adjusted = baseValue * (1 + adjPct / 100);
+    if (!adjPct) return { rows: rows, subtotal: { label: baseLabel, value: baseValue } };
+    const blanks = new Array(Math.max(0, cols.length - 2)).fill('');
+    return {
+      rows: rows.concat([
+        [ baseLabel ].concat(blanks, [ money(baseValue) ]),
+        [ 'Trade Adjust % (' + (adjPct > 0 ? '+' : '') + fmt2(adjPct) + '%)' ].concat(blanks, [ money(adjusted - baseValue) ])
+      ]),
+      subtotal: { label: 'Budget figure on Cost Control', value: adjusted }
+    };
+  }
+
+  if (src.type === 'trade' && src.trade){
+    const t = src.trade;
+    if (t.isInternal){
+      const items = (t.internalPricing && Array.isArray(t.internalPricing.items)) ? t.internalPricing.items : [];
+      const rows = items.map(it => it.isHeading
+        ? { heading: it.description || '(untitled section)' }
+        // calcInternalQty() (not the item's own .qty field) is what the
+        // Internal Pricing worksheet and its line total actually use — it's
+        // derived from the line's dimension sub-rows. Showing .qty here
+        // instead would print a Qty that doesn't reconcile with the Total
+        // sitting beside it.
+        : [ it.description || '—', it.uom || '', fmt2(calcInternalQty(it)), money2(calcInternalTotalRate(it)), money(calcInternalLine(it)) ]);
+      const icols = ccCols(ccCol('Description'), ccCol('UOM'), ccCol('Qty', true), ccCol('Total Rate', true), ccCol('Total', true));
+      return Object.assign(withAdjust(rows, icols, internalPricingTotal(t), 'Internal Pricing worksheet total'), {
+        columns: icols,
+        note: 'Priced on this trade\u2019s own Internal Pricing worksheet (Tendering \u2192 Trade Pricing). ' + adjNote
+      });
+    }
+    const sel = tradeSelectedRows(t);
+    const tagLabels = Array.isArray(t.tagLabels) ? t.tagLabels : [];
+    const usedTags = tagLabels.map((l, i) => ({ l: l, i: i })).filter(o => sel.some(r => num((r.tags || [])[o.i])));
+    const cols = [ ccCol('Subcontractor'), ccCol(t.subPriceLabel || 'Sub Price', true) ]
+      .concat(usedTags.map(o => ccCol(o.l || ('Tag ' + (o.i + 1)), true)))
+      .concat([ ccCol('Total', true) ]);
+    const rows = sel.map(r => [ r.sub || '(unnamed)', money(num(r.price)) ]
+      .concat(usedTags.map(o => money(num((r.tags || [])[o.i]))))
+      .concat([ money(rowTotal(r)) ]));
+    return Object.assign(withAdjust(rows, cols, tradeValue(t), 'Selected tender price'), {
+      columns: cols,
+      note: 'The subcontractor tender(s) ticked as selected for this trade on Tendering \u2192 Trade Pricing. ' + adjNote
+    });
+  }
+
+  if (src.type === 'pg' && src.heading){
+    const items = pgItemsForHeading(src.heading.id);
+    const pcols = ccCols(ccCol('Item'), ccCol('UOM'), ccCol('Duration', true), ccCol('Qty', true), ccCol('Rate', true), ccCol('Total', true));
+    const prows = items.map(r => [
+      r.sub || '—', r.uom || '',
+      fmt2(r.duration === undefined || r.duration === null || r.duration === '' ? 1 : num(r.duration)),
+      fmt2(num(r.qty)), money2(num(r.rate)), money(calcPgLine(r))
+    ]);
+    return Object.assign(withAdjust(prows, pcols, pgHeadingSubtotal(src.heading.id), 'Section subtotal on the P&G worksheet'), {
+      columns: pcols,
+      note: 'The Preliminaries & General worksheet line items sitting under this section. ' + adjNote
+    });
+  }
+
+  if (src.type === 'extra'){
+    return { columns: null, rows: [], note: 'This is a manual Cost Control line item, so it has no automatic Budget source — it carries a $0 Budget by design. Set its expected cost on its Forecast to Complete worksheet instead.' };
+  }
+  if (src.type === 'included' || src.type === 'provisional'){
+    const label = src.type === 'included' ? 'Included Sum' : 'Provisional Sum';
+    return {
+      columns: ccCols(ccCol('Source'), ccCol('Value', true)),
+      rows: [[ label + ' \u2014 ' + (src.item && src.item.name ? src.item.name : '(untitled)'), money(num(src.item ? src.item.val : 0)) ]],
+      note: 'Entered as a ' + label + ' on Trade Summary. Included Sums are shown here at their raw, pre-margin value \u2014 the margin they attract is carried on the Contractors Margin row instead, so it isn\u2019t counted twice.'
+    };
+  }
+  if (src.type === 'margin'){
+    const calc = computeFinal();
+    return {
+      columns: ccCols(ccCol('Trade Summary figure'), ccCol('Amount', true)),
+      rows: [
+        [ 'Final subtotal', money(calc.finalSubtotal) ],
+        [ 'less adjusted trade subtotal', money(-calc.subtotalAdj) ],
+        [ 'less Included Sums (excl.)', money(-calc.includedExcl) ]
+      ],
+      note: 'The one aggregate Contractors Margin line, taken straight from Trade Summary rather than spread across each trade.'
+    };
+  }
+  if (src.type === 'contingency'){
+    const calc = computeFinal();
+    return {
+      columns: ccCols(ccCol('Trade Summary figure'), ccCol('Amount', true)),
+      rows: [[ 'Contingency at ' + fmt2(num(state.contingencyPct)) + '%', money(calc.contingency) ]],
+      note: 'The one aggregate Contractors Contingency line, set as a percentage on Trade Summary.'
+    };
+  }
+  if (src.type === 'labour-orphan'){
+    return { columns: null, rows: [], note: 'No priced trade and no Preliminaries & General section on this project carries cost code ' + (line.costCode || '') + ', so there is no budget against it \u2014 only approved timesheet labour, shown in the Labour section below. Add a P&G section with this cost code to give it a budget.' };
+  }
+  return { columns: null, rows: [], note: 'This Cost Control row\u2019s Budget figure has no itemised source available.' };
+}
+
+/* Approved VOs — every approved head-contract variation line coded here, plus
+   (for the two special cost codes only) the P&G and margin add-ons those
+   variations carry, exactly as approvedVOByCostCode() accumulates them. */
+function ccApprovedVoSection(costCode){
+  const code = (costCode || '').trim();
+  const rows = [];
+  if (code){
+    const pgTrade = state.trades.find(t => t.isPG);
+    const pgCostCode = pgTrade ? (pgTrade.costCode || '').trim() : '';
+    state.variations.forEach(v => {
+      if (!isVoApproved(v) || !voHasBreakdown(v)) return;
+      v.breakdown.items.forEach(it => {
+        if (it.isHeading) return;
+        if ((it.costCode || '').trim() !== code) return;
+        const lineTotal = calcVOLineTotal(it);
+        const signed = it.type === 'deduct' ? -lineTotal : lineTotal;
+        rows.push([ v.ref || '—', v.title || '—', it.description || '—', it.uom || '', fmt2(num(it.qty)), money2(num(it.rate)), money(signed) ]);
+      });
+      if (pgCostCode && code === pgCostCode){
+        const t = computeVOBreakdown(v);
+        if (t.amtOnsite) rows.push([ v.ref || '—', v.title || '—', 'Onsite overhead add-on (' + fmt2(t.pctOnsite) + '%)', '', '', '', money(t.amtOnsite) ]);
+        if (t.amtOffsite) rows.push([ v.ref || '—', v.title || '—', 'Offsite overhead add-on (' + fmt2(t.pctOffsite) + '%)', '', '', '', money(t.amtOffsite) ]);
+      }
+      if (code === MARGIN_COST_CODE){
+        const t = computeVOBreakdown(v);
+        if (t.amtProcessing) rows.push([ v.ref || '—', v.title || '—', 'Processing add-on (' + fmt2(t.pctProcessing) + '%)', '', '', '', money(t.amtProcessing) ]);
+        if (t.amtMargin) rows.push([ v.ref || '—', v.title || '—', 'Margin add-on (' + fmt2(t.pctMargin) + '%)', '', '', '', money(t.amtMargin) ]);
+      }
+    });
+  }
+  return {
+    columns: ccCols(ccCol('VO'), ccCol('Variation'), ccCol('Line'), ccCol('UOM'), ccCol('Qty', true), ccCol('Rate', true), ccCol('Amount', true)),
+    rows: rows,
+    note: 'Approved head-contract variations only \u2014 a Pending or In Progress variation contributes nothing here until it is approved. Deductions are shown as negatives.'
+  };
+}
+
+/* Budget Transfer — every transfer in or out of this cost code. */
+function ccTransferSection(costCode){
+  const code = (costCode || '').trim();
+  const rows = [];
+  if (code){
+    state.budgetTransfers.forEach((t, i) => {
+      const inbound = t.toCostCode === code;
+      const outbound = t.fromCostCode === code;
+      if (!inbound && !outbound) return;
+      rows.push([
+        String(i + 1),
+        t.date ? fmtDateStr(t.date) : '—',
+        inbound ? 'In' : 'Out',
+        inbound ? ('from ' + (t.fromCostCode || '—')) : ('to ' + (t.toCostCode || '—')),
+        t.note || '',
+        money(inbound ? num(t.amount) : -num(t.amount))
+      ]);
+    });
+  }
+  return {
+    columns: ccCols(ccCol('No.'), ccCol('Date'), ccCol('Direction'), ccCol('Other cost code'), ccCol('Note'), ccCol('Amount', true)),
+    rows: rows,
+    note: 'Recorded on the Budget Transfer Register. Across the whole project every transfer nets to zero \u2014 it only ever moves existing budget between cost codes.'
+  };
+}
+
+/* Committed — engaged/complete subcontractors' contract sums, plus closed POs'
+   invoiced amounts apportioned to this cost code. Mirrors
+   approvedSubcontractorContractSumForTrade() + committedPOByCostCode(). */
+function ccCommittedSection(line){
+  const src = line.source || {};
+  const code = (line.costCode || '').trim();
+  const rows = [];
+
+  if (src.type === 'trade' && src.trade){
+    subcontractorsForTrade(src.trade.id).forEach(s => {
+      if (s.status !== 'Engaged' && s.status !== 'Complete') return;
+      rows.push([ 'Subcontract', s.company || '(unnamed subcontractor)', s.status, '100%', money(num(s.contractSum)) ]);
+    });
+  }
+  if (src.type === 'extra' && src.extra && num(src.extra.committed)){
+    rows.push([ 'Manual', src.extra.name || '(untitled line item)', 'Entered by hand on this row', '100%', money(num(src.extra.committed)) ]);
+  }
+  if (code){
+    state.purchaseOrders.forEach(po => {
+      if (po.status !== 'closed') return;
+      const share = poCostCodeShare(po, code);
+      if (!share) return;
+      rows.push([ 'Purchase Order', (po.poNumber || '—') + ' \u2014 ' + (po.supplierCompany || '(no supplier)'), 'Closed, ' + money(poInvoicedTotal(po)) + ' invoiced', fmt2(share * 100) + '%', money(share * poInvoicedTotal(po)) ]);
+    });
+  }
+
+  const b = getBudgetRow(line.budgetId);
+  const overridden = b && b.committed !== null && b.committed !== undefined && b.committed !== '';
+  return {
+    columns: ccCols(ccCol('Source'), ccCol('Detail'), ccCol('Status'), ccCol('Share of this cost code', true), ccCol('Amount', true)),
+    rows: rows,
+    alwaysShow: true,
+    note: overridden
+      ? 'A manual Committed Cost override of ' + money(num(b.committed)) + ' is saved on this row (from an older version of the app), so the figure above is that override rather than the sum of the items listed.'
+      : 'Only a subcontractor actually Engaged or Complete counts as committed \u2014 a Prospective or On Hold one hasn\u2019t committed the project to anything yet. Only a CLOSED Purchase Order\u2019s invoiced amount lands here; an open one sits in Pending POs instead. Where a PO\u2019s lines span several cost codes its invoiced total is apportioned in proportion to each code\u2019s share of the ordered value.'
+  };
+}
+
+/* Labour — approved timesheet weeks costed to this cost code. Itemised per
+   person per week when project_labour_detail() is available (see
+   loadProjectLabourDetail above), otherwise a single total row. */
+function ccLabourSection(costCode){
+  const code = (costCode || '').trim();
+  const hours = labourHoursByCostCode(code);
+  const cost = labourByCostCode(code);
+  const detail = code ? (labourDetailByCostCode[code] || []) : [];
+
+  if (labourDetailAvailable && detail.length){
+    return {
+      columns: ccCols(ccCol('Person'), ccCol('Discipline'), ccCol('Week starting'), ccCol('Hours', true), ccCol('Charge-out rate', true), ccCol('Cost', true)),
+      rows: detail.slice().sort((a, b) => (a.person || '').localeCompare(b.person || '') || (a.weekStart || '').localeCompare(b.weekStart || ''))
+        .map(r => [ r.person, r.discipline || '—', r.weekStart ? fmtDateStr(r.weekStart) : '—', fmt2(r.hours), money2(r.rate), money(r.cost) ]),
+      alwaysShow: true,
+      note: 'Each row is one approved timesheet week. The charge-out rate shown is the one frozen onto that week at the moment it was approved \u2014 changing a rate on Admin \u2192 Charge-Out Rates later never restates a week already signed off.'
+    };
+  }
+
+  const rows = (hours || cost) ? [[ fmt2(hours), money(cost) ]] : [];
+  let note;
+  if (labourDetailDenied){
+    note = 'This database restricts the per-person breakdown of these hours to organisation admins. The total above is correct either way.';
+  } else if (labourCostAvailable && !labourDetailAvailable){
+    note = 'The per-person breakdown isn\u2019t available on this database yet \u2014 labour_detail_migration.sql hasn\u2019t been run. The total above is correct; only the itemisation below it is missing.';
+  } else if (!labourCostAvailable){
+    note = 'Approved-timesheet costing isn\u2019t available on this database yet (timesheet_costing_migration.sql hasn\u2019t been run), so every Labour figure reads $0.';
+  } else {
+    note = 'Nothing approved against this cost code yet. Approved hours reach here from Admin \u2192 Timesheet Approvals.';
+  }
+  return {
+    columns: ccCols(ccCol('Approved hours', true), ccCol('Cost', true)),
+    rows: rows,
+    alwaysShow: true,
+    note: note
+  };
+}
+
+/* Subcontract VOs — every linked subcontractor's own approved variations, kept
+   separate from the head-contract Approved VOs column above. */
+function ccSubVoSection(line){
+  const src = line.source || {};
+  const rows = [];
+  if (src.type === 'trade' && src.trade){
+    subcontractorsForTrade(src.trade.id).forEach(s => {
+      (s.variations || []).forEach(v => {
+        if (v.status !== 'Approved') return;
+        rows.push([ s.company || '(unnamed subcontractor)', v.ref || '—', v.title || '—', money(num(v.approved)) ]);
+      });
+    });
+  }
+  return {
+    columns: ccCols(ccCol('Subcontractor'), ccCol('Ref'), ccCol('Variation'), ccCol('Approved', true)),
+    rows: rows,
+    alwaysShow: true,
+    note: src.type === 'trade'
+      ? 'A subcontractor variation only counts once its Status is Approved \u2014 a Pending estimate doesn\u2019t inflate cost before it\u2019s agreed. Recorded on Subcontractors \u2192 Claims & Variations.'
+      : 'Only a Cost Control row tied to a priced trade can have linked subcontractors, so this row never carries subcontract variations.'
+  };
+}
+
+/* Pending POs — every OPEN Purchase Order's ordered value apportioned to this
+   cost code. Mirrors pendingPOByCostCode(). */
+function ccPendingPoSection(costCode){
+  const code = (costCode || '').trim();
+  const rows = [];
+  if (code){
+    state.purchaseOrders.forEach(po => {
+      if (po.status !== 'open') return;
+      const share = poCostCodeShare(po, code);
+      if (!share) return;
+      const invoiced = poInvoicedTotal(po);
+      rows.push([
+        po.poNumber || '—',
+        po.supplierCompany || '(no supplier)',
+        poTypeLabel(po),
+        money(poOrderedTotal(po)),
+        invoiced ? money(invoiced) : '—',
+        fmt2(share * 100) + '%',
+        money(share * poOrderedTotal(po))
+      ]);
+    });
+  }
+  return {
+    columns: ccCols(ccCol('PO'), ccCol('Supplier'), ccCol('Type'), ccCol('Ordered', true), ccCol('Invoiced to date', true), ccCol('Share of this cost code', true), ccCol('On this cost code', true)),
+    rows: rows,
+    alwaysShow: true,
+    note: 'The full ordered value of every OPEN Purchase Order against this cost code. Interim invoices on a still-open order don\u2019t reduce this figure \u2014 the whole anticipated cost stays visible here until the PO is actually closed, at which point its invoiced total moves across into Committed.'
+  };
+}
+
+/* Forecast to Complete — either this cost centre's own FC worksheet lines, or
+   an explanation of the automatic figure when the worksheet is empty. */
+function ccForecastSection(line, revBudget, cAmt, labourAmt, subVOAmt, poAmt){
+  const ws = state.fcWorksheets[line.budgetId];
+  if (ws && ws.length){
+    return {
+      columns: ccCols(ccCol('Item'), ccCol('Description'), ccCol('Duration', true), ccCol('Qty', true), ccCol('Rate', true), ccCol('Total', true)),
+      rows: ws.map((r, i) => [
+        String(i + 1), r.description || '—',
+        fmt2(r.duration === undefined || r.duration === null || r.duration === '' ? 1 : num(r.duration)),
+        fmt2(num(r.qty)), money2(num(r.rate)), money(calcFcLine(r))
+      ]),
+      note: 'Built by hand on this cost centre\u2019s own Forecast to Complete worksheet, which overrides the automatic figure. Remove every line there to go back to the automatic calculation.'
+    };
+  }
+  return {
+    columns: ccCols(ccCol('Automatic calculation'), ccCol('Amount', true)),
+    rows: [
+      [ 'Revised Budget', money(revBudget) ],
+      [ 'less Committed', money(-cAmt) ],
+      [ 'less Labour', money(-labourAmt) ],
+      [ 'less Subcontract VOs', money(-subVOAmt) ],
+      [ 'less Pending POs', money(-poAmt) ]
+    ],
+    note: 'No Forecast to Complete worksheet has been built for this cost centre, so the automatic figure is used: whatever is left of the Revised Budget after everything already committed, costed or ordered \u2014 floored at $0, so an overspent cost code forecasts nothing further to come rather than a negative amount. Click the Forecast to Complete figure on Cost Control to build it up by hand instead.'
+  };
+}
+
+/* Assembles the whole breakdown for one Cost Control row. Deliberately
+   recomputes every figure from the same helpers renderBudget() uses (rather
+   than being handed the numbers) — see the header comment above. */
+function buildCcBreakdown(line){
+  const costCode = line.costCode || '';
+  const committedDefault = num(line.committedDefault) + committedPOByCostCode(costCode);
+  const bAmt = budgetOverride(line.budgetId, num(line.budgetDefault));
+  const voAmt = approvedVOByCostCode(costCode);
+  const transferAmt = transferNetForCostCode(costCode);
+  const revBudget = bAmt + voAmt + transferAmt;
+  const cAmt = committedOverride(line.budgetId, committedDefault);
+  const subVOAmt = num(line.subVODefault);
+  const poAmt = pendingPOByCostCode(costCode);
+  const labourAmt = labourByCostCode(costCode);
+  const autoForecast = Math.max(0, revBudget - cAmt - labourAmt - subVOAmt - poAmt);
+  const forecastToComplete = forecastValue(line.budgetId, autoForecast);
+  const totalForecast = cAmt + labourAmt + subVOAmt + poAmt + forecastToComplete;
+  const gainLoss = revBudget - totalForecast;
+
+  const figures = { bAmt, voAmt, transferAmt, revBudget, cAmt, labourAmt, subVOAmt, poAmt, forecastToComplete, totalForecast, gainLoss };
+
+  const sections = [
+    Object.assign({ id: 'budget', title: 'Budget', total: bAmt }, ccBudgetSection(line)),
+    Object.assign({ id: 'vos', title: 'Approved VOs', total: voAmt }, ccApprovedVoSection(costCode)),
+    Object.assign({ id: 'transfer', title: 'Budget Transfer', total: transferAmt, signed: true }, ccTransferSection(costCode)),
+    Object.assign({ id: 'committed', title: 'Committed', total: cAmt }, ccCommittedSection(line)),
+    Object.assign({ id: 'labour', title: 'Labour', total: labourAmt }, ccLabourSection(costCode)),
+    Object.assign({ id: 'subvos', title: 'Subcontract VOs', total: subVOAmt }, ccSubVoSection(line)),
+    Object.assign({ id: 'pos', title: 'Pending POs', total: poAmt }, ccPendingPoSection(costCode)),
+    Object.assign({ id: 'forecast', title: 'Forecast to Complete', total: forecastToComplete }, ccForecastSection(line, revBudget, cAmt, labourAmt, subVOAmt, poAmt))
+  ];
+
+  return { line, figures, sections };
+}
+
+/* ---- Rendering ----
+   Built as an HTML string (the same convention every printed report in this
+   file uses) rather than DOM calls, since nothing in this view is interactive
+   beyond the one "open the Forecast worksheet" button wired up afterwards. */
+function ccSectionHtml(sec){
+  const hasRows = sec.rows && sec.rows.length;
+  // Committed / Labour / Subcontract VOs / Pending POs always render even when
+  // empty: on a report a subcontractor or QS is reading, "nothing committed
+  // yet" is a real and useful statement, whereas an empty Budget or Transfer
+  // section is just noise. The rest are dropped when they have nothing in them
+  // AND no figure against them.
+  if (!hasRows && !sec.alwaysShow && !num(sec.total)) return '';
+
+  let html = '<div class="cc-section" id="cc-sec-' + escapeAttr(sec.id) + '">';
+  html += '<div class="cc-section-head"><h4>' + escapeHtml(sec.title) + '</h4>'
+       +  '<div class="cc-section-total mono">' + escapeHtml(sec.signed && num(sec.total) ? (num(sec.total) < 0 ? money(sec.total) : '+' + money(sec.total)) : money(sec.total)) + '</div></div>';
+
+  if (hasRows && sec.columns){
+    html += '<div class="scrollx"><table class="data cc-table"><thead><tr>'
+         +  sec.columns.map(c => '<th' + (c.num ? ' class="num"' : '') + '>' + escapeHtml(c.label) + '</th>').join('')
+         +  '</tr></thead><tbody>';
+    sec.rows.forEach(r => {
+      if (r && r.heading !== undefined){
+        html += '<tr class="heading-row"><td colspan="' + sec.columns.length + '">' + escapeHtml(r.heading) + '</td></tr>';
+        return;
+      }
+      html += '<tr>' + r.map((cell, i) => '<td' + (sec.columns[i] && sec.columns[i].num ? ' class="num readout"' : ' class="readout"') + '>' + escapeHtml(cell) + '</td>').join('') + '</tr>';
+    });
+    html += '</tbody>';
+    if (sec.subtotal){
+      html += '<tfoot><tr class="total-row"><td colspan="' + (sec.columns.length - 1) + '">' + escapeHtml(sec.subtotal.label) + '</td>'
+           +  '<td class="num calc">' + escapeHtml(money(sec.subtotal.value)) + '</td></tr></tfoot>';
+    }
+    html += '</table></div>';
+  } else {
+    html += '<p class="cc-empty">' + escapeHtml(sec.alwaysShow || !num(sec.total) ? 'Nothing recorded against this cost code.' : 'No itemised source available for this figure.') + '</p>';
+  }
+
+  if (sec.note) html += '<div class="note cc-note">' + escapeHtml(sec.note) + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function ccBreakdownHtml(bd){
+  const f = bd.figures;
+  const line = bd.line;
+  let html = '<div class="cc-breakdown">';
+  html += '<div class="cc-head">'
+       +  '<h3>' + escapeHtml(line.label || '(untitled)') + '</h3>'
+       +  '<p class="page-sub">Cost code ' + escapeHtml(line.costCode || '\u2014') + ' \u2014 ' + escapeHtml(state.project && state.project.name ? state.project.name : 'this project') + escapeHtml(jobNumberTag()) + '</p>'
+       +  '</div>';
+
+  html += bd.sections.map(ccSectionHtml).join('');
+
+  html += '<div class="cc-section" id="cc-sec-summary">'
+       +  '<div class="cc-section-head"><h4>Summary</h4><div class="cc-section-total mono">' + escapeHtml(money(f.gainLoss)) + '</div></div>'
+       +  '<table class="data cc-table cc-waterfall"><tbody>'
+       +  '<tr><td>Budget</td><td class="num readout">' + escapeHtml(money(f.bAmt)) + '</td></tr>'
+       +  '<tr><td>Approved VOs</td><td class="num readout">' + escapeHtml(money(f.voAmt)) + '</td></tr>'
+       +  '<tr><td>Budget Transfer</td><td class="num readout">' + escapeHtml(f.transferAmt ? (f.transferAmt < 0 ? money(f.transferAmt) : '+' + money(f.transferAmt)) : '\u2014') + '</td></tr>'
+       +  '<tr class="total-row"><td>REVISED BUDGET</td><td class="num calc">' + escapeHtml(money(f.revBudget)) + '</td></tr>'
+       +  '<tr><td>Committed</td><td class="num readout">' + escapeHtml(money(f.cAmt)) + '</td></tr>'
+       +  '<tr><td>Labour</td><td class="num readout">' + escapeHtml(money(f.labourAmt)) + '</td></tr>'
+       +  '<tr><td>Subcontract VOs</td><td class="num readout">' + escapeHtml(money(f.subVOAmt)) + '</td></tr>'
+       +  '<tr><td>Pending POs</td><td class="num readout">' + escapeHtml(money(f.poAmt)) + '</td></tr>'
+       +  '<tr><td>Forecast to Complete</td><td class="num readout">' + escapeHtml(money(f.forecastToComplete)) + '</td></tr>'
+       +  '<tr class="total-row"><td>TOTAL FORECAST</td><td class="num calc">' + escapeHtml(money(f.totalForecast)) + '</td></tr>'
+       +  '<tr class="total-row"><td>GAIN / LOSS</td><td class="num calc ' + (f.gainLoss < 0 ? 'neg' : 'pos') + '">' + escapeHtml(money(f.gainLoss)) + '</td></tr>'
+       +  '</tbody></table>'
+       +  '<div class="note cc-note">Revised Budget = Budget + Approved VOs + Budget Transfer. Total Forecast = Committed + Labour + Subcontract VOs + Pending POs + Forecast to Complete. Gain/Loss = Revised Budget \u2212 Total Forecast, so a negative figure is an overspend against this cost centre.</div>'
+       +  '</div>';
+
+  html += '</div>';
+  return html;
+}
+
+function renderCcBreakdown(){
+  const wrap = document.getElementById('cc-breakdown-body');
+  if (!wrap) return;
+  const line = ccFindLine(ccBreakdownId);
+  if (!line){
+    wrap.innerHTML = '<p class="page-sub">That cost centre is no longer on the Cost Control table \u2014 close this view and pick another row.</p>';
+    return;
+  }
+  wrap.innerHTML = ccBreakdownHtml(buildCcBreakdown(line));
+
+  // The Forecast to Complete section links across to that cost centre's own
+  // editable worksheet rather than reproducing it — one worksheet, one place
+  // to edit it.
+  const fcSec = document.getElementById('cc-sec-forecast');
+  if (fcSec){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-ghost-dark no-print';
+    btn.style.marginTop = '8px';
+    btn.textContent = 'Open the Forecast to Complete worksheet \u2192';
+    btn.addEventListener('click', () => openFcWorksheet(line.budgetId, line.costCode, line.label || ''));
+    fcSec.appendChild(btn);
+  }
+}
+
+/* Opened from any cell on a Cost Control row. `anchor` is a section id
+   ('committed', 'labour', …) when a specific value cell was clicked, so the
+   page opens scrolled to that column's own build-up rather than the top. */
+function openCcBreakdown(budgetId, anchor){
+  switchTab('budget');
+  ccBreakdownId = budgetId;
+  document.getElementById('view-budget').style.display = 'none';
+  document.getElementById('view-cc-breakdown').style.display = '';
+  document.body.classList.add('cc-breakdown-active');
+  // switchTab() above turns Cost Control's landscape print on (12+ columns
+  // need it); a single cost centre's breakdown is a narrow portrait page, so
+  // it's turned back off here and restored again by closeCcBreakdown().
+  setBudgetPrintOrientation(false);
+  const line = ccFindLine(budgetId);
+  document.getElementById('page-title').textContent = 'Cost Centre Breakdown';
+  document.getElementById('page-subtitle').textContent = line
+    ? ((line.costCode ? line.costCode + ' \u2014 ' : '') + (line.label || ''))
+    : '';
+  renderCcBreakdown();
+  scrollWorksheetToTop();
+  if (anchor){
+    const el = document.getElementById('cc-sec-' + anchor);
+    if (el) el.scrollIntoView({ block: 'start' });
+  }
+  // Per-person Labour detail needs a round trip; the page renders immediately
+  // with whatever's cached and quietly re-renders once the detail lands, so
+  // opening a breakdown never waits on the network.
+  if (!labourDetailAvailable && !labourDetailDenied && !labourDetailLoading){
+    loadProjectLabourDetail().then(ok => {
+      if (ok && ccBreakdownId === budgetId) renderCcBreakdown();
+    });
+  }
+}
+function closeCcBreakdown(){
+  document.getElementById('view-cc-breakdown').style.display = 'none';
+  ccBreakdownId = null;
+  switchTab('budget');
+}
+
+/* ---- Print: summary + every cost centre ----
+   The existing "Print / Save as PDF" button still prints the Cost Control
+   table on its own. This one prints that same table followed by every cost
+   centre's full build-up, as one document.
+
+   Cost centres with nothing against them at all are skipped rather than
+   printed as a page of zeroes — with a 20-section P&G template plus every
+   priced trade, including them would roughly double the page count for no
+   information. The breakdowns flow continuously rather than forcing a page
+   break each, for the same reason. */
+function printFullBudgetBreakdown(){
+  const host = document.getElementById('budget-full-breakdown');
+  if (!host) return;
+  const lines = budgetBreakdownLines.filter(line => {
+    const bd = buildCcBreakdown(line);
+    const f = bd.figures;
+    return num(f.bAmt) || num(f.voAmt) || num(f.transferAmt) || num(f.cAmt) || num(f.labourAmt) || num(f.subVOAmt) || num(f.poAmt) || num(f.forecastToComplete);
+  });
+  if (!lines.length){
+    alert('There\u2019s nothing on the Cost Control table with a figure against it yet, so there\u2019s no breakdown to print.');
+    return;
+  }
+  host.innerHTML = '<h3 class="cc-print-title">Cost Centre Breakdowns</h3>'
+    + lines.map(line => ccBreakdownHtml(buildCcBreakdown(line))).join('');
+  document.body.classList.add('budget-full-print');
+  // Cleared again after printing so the (potentially very large) generated
+  // markup doesn't sit in the DOM slowing every later render, and so a normal
+  // "Print / Save as PDF" straight afterwards prints only the summary table.
+  const cleanup = () => {
+    document.body.classList.remove('budget-full-print');
+    host.innerHTML = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+  // Safari/iOS don't always fire afterprint — belt and braces, harmless if the
+  // listener above already ran (cleanup is idempotent).
+  setTimeout(cleanup, 1000);
 }
 
 /* ---- Budget lock ----
@@ -32893,6 +33693,9 @@ function wireStaticEvents(){
   document.getElementById('ip-report-print').addEventListener('click', () => window.print());
   document.getElementById('summary-print').addEventListener('click', () => window.print());
   document.getElementById('budget-print').addEventListener('click', () => window.print());
+  document.getElementById('budget-print-full').addEventListener('click', printFullBudgetBreakdown);
+  document.getElementById('cc-breakdown-print').addEventListener('click', () => window.print());
+  document.getElementById('close-cc-breakdown').addEventListener('click', closeCcBreakdown);
   document.getElementById('cashflow-print').addEventListener('click', () => window.print());
   document.getElementById('claim-recipient').addEventListener('change', e => { const c = currentClaim(); if (c) { c.recipientId = e.target.value; scheduleSave(); } });
   document.getElementById('claim-sender').addEventListener('change', e => { const c = currentClaim(); if (c) { c.senderId = e.target.value; scheduleSave(); } });
@@ -33739,6 +34542,9 @@ function switchTab(tab){
   document.getElementById('view-ctransmittal').style.display = 'none';
   document.body.classList.remove('budget-transfer-active');
   document.getElementById('view-budget-transfers').style.display = 'none';
+  ccBreakdownId = null;
+  document.body.classList.remove('cc-breakdown-active');
+  document.getElementById('view-cc-breakdown').style.display = 'none';
   photoAlbumDetailId = null;
   document.body.classList.remove('photo-album-active');
   document.getElementById('view-photo-album').style.display = 'none';
@@ -33865,6 +34671,12 @@ function renderAll(){
   await loadOrgDirectory();
   await loadOrgRatesLibrary();
   await loadProjectLabourCosts(); // Rev44 — approved timesheet cost for Cost Control
+  /* Rev55 — per-person itemisation of that same cost, for the Cost Centre
+     Breakdown view. Deliberately NOT awaited: nothing on screen depends on it
+     (the Cost Control table itself only needs the aggregate above), and
+     openCcBreakdown() re-triggers and re-renders on demand if it hasn't
+     landed by the time someone opens a breakdown. */
+  loadProjectLabourDetail();
   await loadUserThemePreference();
   await loadUserPermissions();
   await DrawingStore.init();
